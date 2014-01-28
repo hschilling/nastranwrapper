@@ -10,12 +10,6 @@ from openmdao.lib.components.external_code import ExternalCode
 
 from openmdao.lib.datatypes.api import Float, Int, Array, Str, Bool, List
 
-from openmdao.util.filewrap import FileParser
-
-from nastran_replacer import NastranReplacer
-from nastran_maker import NastranMaker
-from nastran_parser import NastranParser
-
 class NastranComponent(ExternalCode):
     """All Nastran-capable components should be subclasses of NastranComponent.
 
@@ -62,6 +56,7 @@ class NastranComponent(ExternalCode):
 
         self.bdf = None #qqq
         self.f06 = None #qqq
+        self.op2 = None #qqq
         
         # This variables are just to keep track of what we've
         # deleted if you select keep_first_iteration or keep_last_iteration
@@ -135,11 +130,13 @@ class NastranComponent(ExternalCode):
                                     "most probably mistyped.")
 
             elif trait.iotype == "out":
+
                 # if we want to supply a function that will parse
                 # out the wanted information from the output object
                 # and the fileparser, then this
                 if trait.nastran_func:
                     output_variables[name] = trait
+
 
                 #qqq begin
                 # if trait.pynastran_func:
@@ -149,11 +146,11 @@ class NastranComponent(ExternalCode):
                 # this is the grid method of accessing. We have to
                 # specify a header, row, and attribute and
                 # the output variable will be set to that value
-                if trait.nastran_header and trait.nastran_constraints and trait.nastran_columns:
+                elif trait.nastran_table and trait.nastran_id and trait.nastran_column:
                     grid_outputs[name] = trait
-                elif trait.nastran_header or trait.nastran_constraints or trait.nastran_columns:
+                elif trait.nastran_table or trait.nastran_id or trait.nastran_column:
                     raise RuntimeError("You specified at least one of " + \
-                                    "nastran_header, nastran_constrains"+\
+                                    "nastran_table, nastran_id"+\
                                     ", and nastran_columns, but you " + \
                                     "did not specify all them. You " + \
                                     "most probably mistyped")
@@ -172,7 +169,9 @@ class NastranComponent(ExternalCode):
             'MAT1': 'Material',
             }
 
-        self.bdf = BDF(debug=False,log=None)
+
+        import logging
+        self.bdf = BDF(debug=False,log=logging.getLogger() )
         #mesh.cardsToRead = set(['GRID','CQUAD4','PSHELL','MAT1','CORD2R'])
         # not required, but lets you limit the cards
         # if there's a problem with one
@@ -185,7 +184,6 @@ class NastranComponent(ExternalCode):
         for name, trait in smart_replacements.iteritems():
             # for now need to handle PROD, FORCE, MAT1
 
-            # !!!!!!!!!!!! need to add PSHELL !!!!!!
 
             #bdf.Property( 2 ,'qq')
             # 'mid', 'mid1', 'mid2', 'mid3', 'mid4', 'nsm', 'pid', 'printRawFields', 'print_card', 'rawFields', 'reprFields', 'repr_card', 't', 'tst', 'twelveIt3', 'type', 'writeCalculix', 'writeCodeAster', 'writeCodeAsterLoad', 'z1', 'z2'
@@ -324,18 +322,15 @@ class NastranComponent(ExternalCode):
         # nastran_subcase=1,
         # nastran_constraints={"POINT ID." : "1"},
         # nastran_columns=["T2"])
+        displacement_columns = ['T1','T2','T3']
         for name, trait in grid_outputs.iteritems():
-            header = trait.nastran_header
+            table = trait.nastran_table
             subcase = trait.nastran_subcase
-            constraints = trait.nastran_constraints
-            columns = trait.nastran_columns
-            # if header == "displacement vector" :
-            #     point_id = int(constraints['POINT ID.'])
-            #     if "T1" in columns:
-            #         setattr(self, name, self.f06.displacements[subcase].translations[point_id][0])
-            #     elif "T2" in columns:
-            #         setattr(self, name, self.f06.displacements[subcase].translations[point_id][1])
-        # qqq end 
+            nastran_id = trait.nastran_id
+            column = trait.nastran_column
+            if table == "displacement vector" :
+                ixyz = displacement_columns.index( column )
+                setattr(self, name, self.op2.displacements[subcase].translations[nastran_id][ixyz])
         
         for output_name, output_trait in output_variables.iteritems():
             # We run trait.nastran_func on filep and get the

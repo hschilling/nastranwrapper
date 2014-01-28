@@ -6,6 +6,7 @@ import math
 from openmdao.lib.datatypes.api import Float
 
 from nastranwrapper.nastran import NastranComponent
+from nastranwrapper.test.nastranwrapper_test_utils import calculate_stress
 
 class Bar25Static(NastranComponent):
     """ Model of a twenty bar antenna tower truss """
@@ -121,11 +122,3 @@ class Bar25Static(NastranComponent):
 #         # we actually just wanted the maximum
 #         final[-1] = max(final[-1])
 #     return final
-
-
-def calculate_stress((ax, tors)):
-    sigma = 2 * ax * ax
-    tau = 3 * tors * tors
-    val = math.sqrt(.5 * (sigma + tau))
-    return val
-

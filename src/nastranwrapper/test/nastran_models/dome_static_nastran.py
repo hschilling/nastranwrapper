@@ -7,6 +7,7 @@ import math
 from openmdao.lib.datatypes.api import Float
 
 from nastranwrapper.nastran import NastranComponent
+from nastranwrapper.test.nastranwrapper_test_utils import calculate_stress
 
 class DomeStatic(NastranComponent):
 
@@ -102,12 +103,6 @@ class DomeStatic(NastranComponent):
             #von_mises.append(biggest)
             cmd = "self.tria%d_stress = biggest" %i
             exec(cmd)
-
-def calculate_stress((ax, tors)):
-    sigma = 2 * ax * ax
-    tau = 3 * tors * tors
-    val = math.sqrt(.5 * (sigma + tau))
-    return val
 
 # def group_von_mises(groups, von_mises):
 #     final = []

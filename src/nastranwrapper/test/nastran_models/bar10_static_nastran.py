@@ -7,6 +7,7 @@ import math
 from openmdao.lib.datatypes.api import Float
 
 from nastranwrapper.nastran import NastranComponent
+from nastranwrapper.test.nastranwrapper_test_utils import calculate_stress
 
 class Bar10Static(NastranComponent):
 
@@ -97,14 +98,6 @@ class Bar10Static(NastranComponent):
                                        self.op2.rodStress[isubcase].torsion[ i + 1 ] ) )
             cmd = "self.bar%d_stress = stress" % (i+1)
             exec(cmd)
-
-
-def calculate_stress((ax, tors)):
-    sigma = 2 * ax * ax
-    tau = 3 * tors * tors
-    val = math.sqrt(.5 * (sigma + tau))
-    return val
-
 
 if __name__ == "__main__": # pragma: no cover
 
