@@ -60,6 +60,9 @@ class NastranComponent(ExternalCode):
         # be accessed from the the class that subclasses NastranComponent
         self.parser = None
 
+        self.bdf = None #qqq
+        self.f06 = None #qqq
+        
         # This variables are just to keep track of what we've
         # deleted if you select keep_first_iteration or keep_last_iteration
         self._seen_first_iteration = False
@@ -119,8 +122,10 @@ class NastranComponent(ExternalCode):
 
                 # it could also be a smart replacement, but we'll have
                 # to specify the card, id, and fieldnum
-                if trait.nastran_card and trait.nastran_id and trait.nastran_fieldnum:
+                if trait.nastran_card and trait.nastran_id and trait.nastran_field:
                     smart_replacements[name] = trait
+                # if trait.nastran_card and trait.nastran_id and trait.nastran_fieldnum:
+                #     smart_replacements[name] = trait
 
                 elif trait.nastran_card or trait.nastran_id or trait.nastran_fieldnum:
                     raise RuntimeError("You specified at least one of " + \
@@ -135,6 +140,11 @@ class NastranComponent(ExternalCode):
                 # and the fileparser, then this
                 if trait.nastran_func:
                     output_variables[name] = trait
+
+                #qqq begin
+                # if trait.pynastran_func:
+                #     output_pynastran_variables[name] = trait
+                #qqq end
 
                 # this is the grid method of accessing. We have to
                 # specify a header, row, and attribute and
@@ -151,37 +161,95 @@ class NastranComponent(ExternalCode):
         # let's do our work in a tmp dir
         tmpdir = mkdtemp(dir = self.output_tempdir_dir)
         tmppath = path.join(tmpdir, "input.bdf")
-        tmpfh = open(tmppath, "w")
 
-        # raw nastran file supplied by user
-        fh = open(self.nastran_filename, "r")
+        #### qqq pyNastran way to take inputs and write them to the BDF file
+        from pyNastran.bdf.bdf import BDF
 
-        # note: fh.readlines() won't work because it doesn't
-        # strip the newline at the end for you. So whatever,
-        # we'll just use split on newlines.
-        nastran_text = fh.read().split("\n")
-        fh.close()
+        pyNastran_get_card_methods = {
+            'PSHELL': 'Property',
+            'PROD': 'Property',
+            'FORCE': 'Load',
+            'MAT1': 'Material',
+            }
 
-        # replace the variables in the nastran text using Replacer
-        replacer = NastranReplacer(nastran_text)
-        varname2value = {}
-        for name, trait in input_variables.iteritems():
-            varname2value[trait.nastran_var] = getattr(self, name)
-        replacer.replace(varname2value)
-        nastran_text = replacer.text
+        self.bdf = BDF(debug=False,log=None)
+        #mesh.cardsToRead = set(['GRID','CQUAD4','PSHELL','MAT1','CORD2R'])
+        # not required, but lets you limit the cards
+        # if there's a problem with one
 
-        # use nastran maker to intelligently replace
-        # values in cards
-        maker = NastranMaker(nastran_text)
+
+        #from os.path import split
+        self.bdf.readBDF(self.nastran_filename,xref=True) # reads the bdf
+        # bdf_dirname, bdf_filename = split( self.nastran_filename ) 
+        # bdf.readBDF(bdf_filename,includeDir=bdf_dirname,xref=True) # reads the bdf
         for name, trait in smart_replacements.iteritems():
-            value = getattr(self, name)
-            maker.set(trait.nastran_card,
-                      trait.nastran_id,
-                      trait.nastran_fieldnum, value)
-        self.nastran_maker_hook(maker)
-        maker.write_to_file(tmpfh, 10001)
+            # for now need to handle PROD, FORCE, MAT1
 
-        tmpfh.close()
+            # !!!!!!!!!!!! need to add PSHELL !!!!!!
+
+            #bdf.Property( 2 ,'qq')
+            # 'mid', 'mid1', 'mid2', 'mid3', 'mid4', 'nsm', 'pid', 'printRawFields', 'print_card', 'rawFields', 'reprFields', 'repr_card', 't', 'tst', 'twelveIt3', 'type', 'writeCalculix', 'writeCodeAster', 'writeCodeAsterLoad', 'z1', 'z2'
+            # from the QRG 
+            # PID
+            # MID1
+            # T
+            # MID2
+            # 12I/T**3
+            # MID3
+            # TS/T
+            # NSM
+            # Z1
+            # Z2
+            # MID4
+            
+            value = getattr(self, name)
+            id = int( trait.nastran_id )
+            get_method = getattr( self.bdf, pyNastran_get_card_methods[ trait.nastran_card ] )
+            import inspect
+            args = inspect.getargspec(get_method).args
+
+            if 'msg' in args:
+                nastran_item = get_method( id, 'dummy msg' )
+            else:
+                nastran_item = get_method( id )
+
+            if trait.nastran_card == 'FORCE' :
+                nastran_item = nastran_item[0]
+
+            if trait.nastran_field_index :
+                getattr(nastran_item, trait.nastran_field)[ trait.nastran_field_index ] = value
+                #setattr(nastran_item[ trait.nastran_field_index ] , trait.nastran_field, value)
+            else:
+                setattr(nastran_item, trait.nastran_field, value)
+
+            
+            # if trait.nastran_card == "PROD" :
+            #     prop = bdf.Property( id, 'qqq' )
+            #     if trait.nastran_fieldnum == 3:
+            #         prop.A = value
+            # elif trait.nastran_card == "FORCE" :
+            #     load = bdf.Load( id, "qqq" )[0]
+            #     if trait.nastran_fieldnum in [5,6,7]:
+            #         load.xyz[ trait.nastran_fieldnum - 5 ] = value
+            #     elif trait.nastran_fieldnum == 4:
+            #         load.mag = value
+            # elif trait.nastran_card == "MAT1" :
+            #     # E which is Youngs modulus is rawFields()[2]
+            #     # that does correspond to the nastran_fieldnum value
+            #     # we use so indices are not off by one
+            #     mat = bdf.Material( id )
+            #     if trait.nastran_fieldnum == 2:
+            #         mat.e = value
+            #     elif trait.nastran_fieldnum == 5:
+            #         mat.rho = value
+            #     # maker.set(trait.nastran_card,
+            #     #           trait.nastran_id,
+            #     #           trait.nastran_fieldnum, value)
+
+        self.update_hook()
+
+        #self.bdf.write_bdf(tmppath)
+        self.bdf.write_bdf(tmppath,precision='double',size=16)
 
         # what is the new file called?
         self.output_filename = path.join(tmpdir, "input.out")
@@ -203,74 +271,84 @@ class NastranComponent(ExternalCode):
         # the nastran command via subprocess
         super(NastranComponent, self).execute()
 
-        # And now we parse the output
+        ###################
+        # OP2
+        from pyNastran.op2.op2 import OP2
+        op2_filename = self.output_filename[:-4] + '.op2'
+        f06_filename = self.output_filename
+        self.op2 = OP2(op2_filename, debug=False,log=None)
+        #self.op2.make_op2_debug = True   # can create a HUGE file that slows things down a lot
+        #self.op2.readOP2()
 
-        filep = FileParser()
-        filep.set_file(self.output_filename)
-        filep.set_delimiters(" ")
+        from pyNastran.f06.f06 import F06, FatalError
+        self.f06 = F06(f06_filename,debug=False)  # debug True makes it slow
+        import os
+        if os.path.exists(op2_filename):
+            try:
+                self.op2.read_op2()  # doesn't tell you what the error message is
+            except FatalError:
+                try:
+                    self.f06.read_f06()
+                except FatalError as err:
+                    raise RuntimeError('Nastran fatal error:' + str( err ) )
+        elif os.path.exists(f06_filename):
+            try:
+                self.f06.read_f06()  # this will stop with a FatalError with the proper FATAL message
+            except FatalError as err:
+                raise RuntimeError('Nastran fatal error:' + str( err ) )
+        else:
+            raise RuntimeError('nastran fatal error' )
 
-        # Before we start, we want to make sure we aren't
-        # dealing with a failed run. So we search for "FATAL"
-        for line in filep.data:
-            if "FATAL" in line:
+
+        
+        #import pdb; pdb.set_trace()
+        ###################
+
+
+        # qqq start
+        # get the outputs using pyNastran
+        if 0:
+            from pyNastran.f06.f06 import F06, FatalError
+            self.f06 = F06(self.output_filename,debug=False)  # debug True makes it slow
+            try:
+                self.f06.readF06()
+            except FatalError:
                 raise RuntimeError("There was a problem with " + \
                                    "Nastran. It failed to run " + \
                                    "correctly. If you want to see " +\
                                    "the output, check out " + \
                                    self.output_filename)
-
-
-        for output_name, output_trait in output_variables.iteritems():
-            # We run trait.nastran_func on filep and get the
-            # final value we want
-            setattr(self, output_name,
-                    output_trait.nastran_func(filep))
-
-
-        # This is the grid parser.
-        self.parser = NastranParser(filep.data)
-        self.parser.parse()
-
+        
+        # try handling
+        # nastran_header="displacement vector",
+        # nastran_subcase=1,
+        # nastran_constraints={"POINT ID." : "1"},
+        # nastran_columns=["T2"])
         for name, trait in grid_outputs.iteritems():
             header = trait.nastran_header
             subcase = trait.nastran_subcase
             constraints = trait.nastran_constraints
             columns = trait.nastran_columns
-            result = self.parser.get(header, subcase, \
-                                     constraints, columns)
-
-            # nastran_{row,column} might be kinda silly
-            # in most cases, the user will probably just call
-            # self.parser.get on her own
-            nastran_row = trait.nastran_row
-            nastran_column = trait.nastran_column
-            row = nastran_row or 0
-            col = nastran_column or 0
-
-            # Now we'll try to guess the conversion we should
-            # perform by inspecting the type of trait that
-            # is requesting this value
-            converter = lambda x: x
-            type_understood_as = "unsure"
-            if isinstance(trait.trait_type, Float):
-                converter = float
-                type_understood_as = "float"
-            elif isinstance(trait.trait_type, Int):
-                converter = lambda x: int(float(x))
-                type_understood_as = "int"
-            elif isinstance(trait.trait_type, Array):
-                # we aren't actually going to return the entire
-                # grid because you should use parser if you
-                # want to do that.
-                converter = lambda x: [x]
-                type_understood_as = "array"
-
-            try:
-                setattr(self, name, converter(result[row][col]))
-            except ValueError, ve:
-                print >> sys.stderr, "Unable to convert string " + \
-                      result[row][col] +  " to " + type_understood_as
-                raise
+            # if header == "displacement vector" :
+            #     point_id = int(constraints['POINT ID.'])
+            #     if "T1" in columns:
+            #         setattr(self, name, self.f06.displacements[subcase].translations[point_id][0])
+            #     elif "T2" in columns:
+            #         setattr(self, name, self.f06.displacements[subcase].translations[point_id][1])
+        # qqq end 
+        
+        for output_name, output_trait in output_variables.iteritems():
+            # We run trait.nastran_func on filep and get the
+            # final value we want
+            if output_trait.nastran_args:
+                setattr(self, output_name,
+                        #output_trait.nastran_func(self.op2,*output_trait.nastran_args))
+                        output_trait.nastran_func(self.op2,**output_trait.nastran_args))
+                        #output_trait.nastran_func(self.f06,*output_trait.nastran_args))
+            else:
+                setattr(self, output_name,
+                        #output_trait.nastran_func(self.f06))
+                        output_trait.nastran_func(self.op2))
 
         # get rid of our tmp dir
         tmpdir_to_delete = ""
@@ -304,5 +382,10 @@ class NastranComponent(ExternalCode):
 
         The return will be ignored. Right after this function exits,
         the Nastran input file will be written out to a file.
+        """
+        pass
+
+    def update_hook(self):
+        """
         """
         pass
