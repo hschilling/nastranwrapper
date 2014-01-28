@@ -8,10 +8,8 @@ from nastranwrapper.nastran import NastranComponent
 class Comp_Module(NastranComponent):
     """ Model of a composite model """
 
-    def mass(filep):
-        filep.reset_anchor()
-        filep.mark_anchor("MASS AXIS SYSTEM (S)")
-        return filep.transfer_var(1, 2)
+    def mass(op2):
+        return op2.grid_point_weight.mass[0]
 
     weight = Float(0., nastran_func=mass, iotype='out', units='lb',
                         desc='Weight of the structure')

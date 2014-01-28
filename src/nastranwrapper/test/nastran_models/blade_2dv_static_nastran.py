@@ -12,12 +12,14 @@ class BladeStatic(NastranComponent):
     """ Model of a Blade quad elements  - Nastran Implementation."""
 
     group1_thickness  = Float(0.5, nastran_card="PSHELL",
-                       nastran_id="1", nastran_fieldnum=3,
+                       nastran_id="1",
+                       nastran_field="T",
                        iotype='in', units='inch',
                        desc='Thickness for group 1')
 
     group2_thickness  = Float(0.03, nastran_card="PSHELL",
-                       nastran_id="2", nastran_fieldnum=3,
+                       nastran_id="2",
+                       nastran_field="T",
                        iotype='in', units='inch',
                        desc='Thickness for group 2')
 
@@ -33,19 +35,18 @@ class BladeStatic(NastranComponent):
                         units='lb/(inch*inch)',
                         desc='Stress in group 2')
 
+    def disp(op2,**keywords):
+        d = op2.displacements[keywords['isubcase']].translations[keywords['id']][keywords['xyz']]
+        return d
+
     displacement_z_dir = Float(0.1632, iotype='out',
                                units='inch',
                                desc='Displacement in z-direction',
-                               #nastran_func=x1disp)
-                               nastran_header="displacement vector",
-                               nastran_subcase=1,
-                               nastran_constraints={"POINT ID." : "28"},
-                               nastran_columns=["T3"])
-
-    def mass(filep):
-        filep.reset_anchor()
-        filep.mark_anchor("MASS AXIS SYSTEM (S)")
-        return filep.transfer_var(1, 2)
+                               nastran_func=disp,
+                               nastran_args={'isubcase':1,'id':28,'xyz':2}
+                               )
+    def mass(op2):
+        return op2.grid_point_weight.mass[0]
 
     weight = Float(0., nastran_func=mass, iotype='out', units='lb',
                         desc='Weight of the structure')
@@ -58,21 +59,48 @@ class BladeStatic(NastranComponent):
 
         super(BladeStatic, self).execute()
 
-        stresses = []
-        header = "S T R E S S E S   I N   Q U A D R I L A T E R A L   E L E M E N T S   ( Q U A D 4 )        OPTION = BILIN"
+        # stresses = []
+        # header = "S T R E S S E S   I N   Q U A D R I L A T E R A L   E L E M E N T S   ( Q U A D 4 )        OPTION = BILIN"
 
+        # columns = ["VON MISES"]
+        # data = self.parser.get(header, None, \
+        #                        {}, columns, row_width=15)
+        # von_mises =[]
+        # for element in data:
+        #     # element looks like  [['9.859733E+04'], ['2.391967E+05'], [''], ['9.494320E+04'], ['2.176725E+05'], [''], ['8.193106E+04'], ['2.595611E+05'], [''], ['1.056561E+05'], ['2.623137E+05'], [''], ['1.184271E+05'], ['2.195168E+05'], ['']]
+        #     values = map(lambda x: x[0],element)
+        #     # values looks like  ['9.859733E+04', '2.391967E+05', '', '9.494320E+04', '2.176725E+05', '', '8.193106E+04', '2.595611E+05', '', '1.056561E+05', '2.623137E+05', '', '1.184271E+05', '2.195168E+05', '']
+        #     biggest = -1.0E+10
+        #     for value in values: 
+        #         if value != '':
+        #            biggest = max(float(value),biggest)  
+        #     von_mises.append(biggest)
 
-        columns = ["VON MISES"]
-        data = self.parser.get(header, None, \
-                               {}, columns, row_width=15)
+        # self.f06.plateStress[1].ovmShear[1]
+        # looks like this
+        #{1: [94943.2, 217672.5], u'C': [98597.33, 239196.7], 83: [105656.1, 262313.7], 82: [118427.1, 219516.8], 2: [81931.06, 259561.1]}
+        # where the second 1 is a key in ovmShear indicating the element id. The keys in the dictionary
+        #   inside of that are grid-id values
+
+        isubcase = 1
         von_mises =[]
-        for element in data:
-            values = map(lambda x: x[0],element)
-            biggest = -1.0E+10
-            for value in values: 
-                if value != '':
-                   biggest = max(float(value),biggest)  
+        for eid, ovmShear in self.op2.plateStress[isubcase].ovmShear.iteritems() :
+            biggest = max( max( s[0], s[1] ) for s in ovmShear.values() )
             von_mises.append(biggest)
+            # cmd = "self.tria%d_stress = biggest" %i
+            # exec(cmd)
+                
+        # for i in range(157,253):
+        #     import pdb; pdb.set_trace()
+        #     biggest = self.f06.plateStress[isubcase].ovmShear[i]['C'][0]
+        #     # values = map(lambda x: x[0],element)
+        #     # biggest = -1.0E+10
+        #     # for value in values:
+        #     #     if value != '':
+        #     #        biggest = max(float(value),biggest)
+        #     #von_mises.append(biggest)
+        #     cmd = "self.tria%d_stress = biggest" %i
+        #     exec(cmd)
 
         groups = [range(25601,25945+1), range(1, 25600+1)]
 

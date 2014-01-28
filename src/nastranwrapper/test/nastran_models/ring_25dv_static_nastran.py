@@ -15,7 +15,8 @@ class RingTruss(NastranComponent):
         cmd = "bar%d_init_area = 1.0" %i
         exec (cmd)
         cmd = 'bar%d_area  = Float(bar%d_init_area, nastran_card="PROD",\
-                       nastran_id="%d", nastran_fieldnum=3,\
+                       nastran_id="%d", \
+                       nastran_field="A",\
                        iotype="in", units="inch*inch",\
                        desc="Cross-sectional area for bar %d")' %(i,i,i,i)
         exec(cmd)
@@ -28,83 +29,68 @@ class RingTruss(NastranComponent):
 
     # these are displacements that will be  constrained
 
+    def disp(op2,**args):
+        d = op2.displacements[args['isubcase']].translations[args['id']][args['xyz']]
+        return d
+
     displacement1_x_dir = Float(1.25, iotype='out',
-                               units='inch',
-                               desc='Displacement in x-direction',
-                               #nastran_func=ydisp)
-                               nastran_header="displacement vector",
-                               nastran_subcase=1,
-                               nastran_constraints={"POINT ID." : "10"},
-                               nastran_columns=["T1"])
+                                units='inch',
+                                desc='Displacement in x-direction',
+                                nastran_func=disp,
+                                nastran_args={'isubcase':1,'id':10,'xyz':0}
+                                )
 
     displacement1_y_dir = Float(1.25, iotype='out',
-                               units='inch',
-                               desc='Displacement in y-direction',
-                               #nastran_func=ydisp)
-                               nastran_header="displacement vector",
-                               nastran_subcase=1,
-                               nastran_constraints={"POINT ID." : "10"},
-                               nastran_columns=["T2"])
+                                units='inch',
+                                desc='Displacement in y-direction',
+                                nastran_func=disp,
+                                nastran_args={'isubcase':1,'id':10,'xyz':1}
+                                )
 
     displacement2_x_dir = Float(1.75, iotype='out',
-                               units='inch',
-                               desc='Displacement in x-direction',
-                               #nastran_func=x1disp)
-                               nastran_header="displacement vector",
-                               nastran_subcase=1,
-                               nastran_constraints={"POINT ID." : "4"},
-                               nastran_columns=["T1"])
+                                units='inch',
+                                desc='Displacement in x-direction',
+                                nastran_func=disp,
+                                nastran_args={'isubcase':1,'id':4,'xyz':0},
+                                )
 
     displacement2_y_dir = Float(1.75, iotype='out',
-                               units='inch',
-                               desc='Displacement in y-direction',
-                               #nastran_func=x1disp)
-                               nastran_header="displacement vector",
-                               nastran_subcase=1,
-                               nastran_constraints={"POINT ID." : "4"},
-                               nastran_columns=["T2"])
+                                units='inch',
+                                desc='Displacement in y-direction',
+                                nastran_func=disp,
+                                nastran_args={'isubcase':1,'id':4,'xyz':1},
+                                )
 
     displacement3_x_dir = Float(2.75, iotype='out',
-                               units='inch',
-                               desc='Displacement in x-direction',
-                               #nastran_func=x2disp)
-                               nastran_header="displacement vector",
-                               nastran_subcase=1,
-                               nastran_constraints={"POINT ID." : "19"},
-                               nastran_columns=["T1"])
+                                units='inch',
+                                desc='Displacement in x-direction',
+                                nastran_func=disp,
+                                nastran_args={'isubcase':1,'id':19,'xyz':0},
+                                )
 
     displacement3_y_dir = Float(2.75, iotype='out',
-                               units='inch',
-                               desc='Displacement in y-direction',
-                               #nastran_func=x2disp)
-                               nastran_header="displacement vector",
-                               nastran_subcase=1,
-                               nastran_constraints={"POINT ID." : "19"},
-                               nastran_columns=["T2"])
+                                units='inch',
+                                desc='Displacement in y-direction',
+                                nastran_func=disp,
+                                nastran_args={'isubcase':1,'id':19,'xyz':1},
+                                )
 
     displacement4_x_dir = Float(2.25, iotype='out',
-                               units='inch',
-                               desc='Displacement in x-direction',
-                               #nastran_func=x2disp)
-                               nastran_header="displacement vector",
-                               nastran_subcase=1,
-                               nastran_constraints={"POINT ID." : "13"},
-                               nastran_columns=["T1"])
+                                units='inch',
+                                desc='Displacement in x-direction',
+                                nastran_func=disp,
+                                nastran_args={'isubcase':1,'id':13,'xyz':0},
+                                )
 
     displacement4_y_dir = Float(2.25, iotype='out',
-                               units='inch',
-                               desc='Displacement in y-direction',
-                               #nastran_func=x2disp)
-                               nastran_header="displacement vector",
-                               nastran_subcase=1,
-                               nastran_constraints={"POINT ID." : "13"},
-                               nastran_columns=["T2"])
+                                units='inch',
+                                desc='Displacement in y-direction',
+                                nastran_func=disp,
+                                nastran_args={'isubcase':1,'id':13,'xyz':1},
+                                )
 
-    def mass(filep):
-        filep.reset_anchor()
-        filep.mark_anchor("MASS AXIS SYSTEM (S)")
-        return filep.transfer_var(1, 2)
-
+    def mass(op2):
+        return op2.grid_point_weight.mass[0]
 
     weight = Float(0., nastran_func=mass, iotype='out', units='lb',
                         desc='Weight of the structure')
@@ -117,28 +103,25 @@ class RingTruss(NastranComponent):
         """
         super(RingTruss, self).execute()
 
-        stresses = []
-        header = "S T R E S S E S   I N   R O D   E L E M E N T S      ( C R O D )"
+        # stresses = []
+        # header = "S T R E S S E S   I N   R O D   E L E M E N T S      ( C R O D )"
 
 
-        columns = ["AXIAL STRESS", "TORSIONAL STRESS"]
-        data = self.parser.get(header, None, \
-                               {}, columns)
+        # columns = ["AXIAL STRESS", "TORSIONAL STRESS"]
+        # data = self.parser.get(header, None, \
+        #                        {}, columns)
 
-        for i, stresses in enumerate(data):
-            stress = calculate_stress((float(stresses[0]), float(stresses[1])))
+        # for i, stresses in enumerate(data):
+        #     stress = calculate_stress((float(stresses[0]), float(stresses[1])))
+        #     cmd = "self.bar%d_stress = stress" % (i+1)
+        #     exec(cmd)
+
+        isubcase = 1
+        for i in range( len( self.op2.rodStress[isubcase].axial ) ) :
+            stress = calculate_stress( ( self.op2.rodStress[isubcase].axial[ i + 1 ],
+                                       self.op2.rodStress[isubcase].torsion[ i + 1 ] ) )
             cmd = "self.bar%d_stress = stress" % (i+1)
             exec(cmd)
-
-def group_stresses(groups, stresses):
-    final = []
-    for group in groups:
-        final.append([])
-        for element in group:
-            final[-1].append(abs(stresses[element-1])) # stresses is zero indexed
-        # we actually just wanted the maximum
-        final[-1] = max(final[-1])
-    return final
 
 def calculate_stress((ax, tors)):
     sigma = 2 * ax * ax

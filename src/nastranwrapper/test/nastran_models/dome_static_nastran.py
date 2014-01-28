@@ -20,14 +20,16 @@ class DomeStatic(NastranComponent):
 
     for i in range(1,157):
         cmd = 'bar%d_area  = Float(bar%d_init_area, nastran_card="PROD",\
-                       nastran_id=%d, nastran_fieldnum=3,\
+                       nastran_id=%d, \
+                       nastran_field="A",\
                        iotype="in", units="inch*inch",\
                        desc="Cross-sectional area for bar %d")' %(i,i,i,i)
         exec(cmd)
 
     for i in range(157,253):
         cmd = 'tria%d_thickness  = Float(tria%d_init_thickness, nastran_card="PSHELL",\
-                       nastran_id=%d, nastran_fieldnum=3,\
+                       nastran_id=%d, \
+                       nastran_field="T",\
                        iotype="in", units="inch*inch",\
                        desc="Membrane thickness for tria %d")' %(i,i,i,i)
         exec(cmd)
@@ -41,11 +43,8 @@ class DomeStatic(NastranComponent):
         cmd = "tria%d_stress = Float(0., iotype='out', units='lb/(inch*inch)', desc='Von Mises stress in element %d')" %(i,i)
         exec(cmd)
 
-    def mass(filep):
-        filep.reset_anchor()
-        filep.mark_anchor("MASS AXIS SYSTEM (S)")
-        return filep.transfer_var(1, 2)
-
+    def mass(op2):
+        return op2.grid_point_weight.mass[0]
 
     weight = Float(0., nastran_func=mass, iotype='out', units='lb',
                         desc='Weight of the structure')
@@ -63,38 +62,45 @@ class DomeStatic(NastranComponent):
         # run, nastran, run
         super(DomeStatic, self).execute()
 
-        stresses_bars = []
-        header = "S T R E S S E S   I N   R O D   E L E M E N T S      ( C R O D )"
+        # stresses_bars = []
+        # header = "S T R E S S E S   I N   R O D   E L E M E N T S      ( C R O D )"
 
-        columns = ["AXIAL STRESS", "TORSIONAL STRESS"]
-        data = self.parser.get(header, None, \
-                               {}, columns)
+        # columns = ["AXIAL STRESS", "TORSIONAL STRESS"]
+        # data = self.parser.get(header, None, \
+        #                        {}, columns)
 
-        for i, stresses_bars in enumerate(data):
-            stress = calculate_stress((float(stresses_bars[0]), float(stresses_bars[1])))
+        # for i, stresses_bars in enumerate(data):
+        #     stress = calculate_stress((float(stresses_bars[0]), float(stresses_bars[1])))
+        #     cmd = "self.bar%d_stress = stress" % (i+1)
+        #     exec(cmd)
+
+        isubcase = 1
+        for i in range( len( self.op2.rodStress[isubcase].axial ) ) :
+            stress = calculate_stress( ( self.op2.rodStress[isubcase].axial[ i + 1 ],
+                                       self.op2.rodStress[isubcase].torsion[ i + 1 ] ) )
             cmd = "self.bar%d_stress = stress" % (i+1)
             exec(cmd)
 
-        stresses_tria = []
-        header = "S T R E S S E S   I N   T R I A N G U L A R   E L E M E N T S   ( T R I A 3 )"
+        # stresses_tria = []
+        # header = "S T R E S S E S   I N   T R I A N G U L A R   E L E M E N T S   ( T R I A 3 )"
 
-        columns = ["VON MISES"]
-        data = self.parser.get(header, None, \
-                               {}, columns, row_width=15)
+        # columns = ["VON MISES"]
+        # data = self.parser.get(header, None, \
+        #                        {}, columns, row_width=15)
 
-        columns = ["VON MISES"]
-        data = self.parser.get(header, None, \
-                               {}, columns, row_width=2)
-        i = 157
-        for element in data:
-            values = map(lambda x: x[0],element)
-            biggest = -1.0E+10
-            for value in values:
-                if value != '':
-                   biggest = max(float(value),biggest)
+        # columns = ["VON MISES"]
+        # data = self.parser.get(header, None, \
+        #                        {}, columns, row_width=2)
+        for i in range(157,253):
+            
+            biggest = self.op2.plateStress[isubcase].ovmShear[i]['C'][0]
+            # values = map(lambda x: x[0],element)
+            # biggest = -1.0E+10
+            # for value in values:
+            #     if value != '':
+            #        biggest = max(float(value),biggest)
             #von_mises.append(biggest)
             cmd = "self.tria%d_stress = biggest" %i
-            i = i +1
             exec(cmd)
 
 def calculate_stress((ax, tors)):
@@ -103,13 +109,13 @@ def calculate_stress((ax, tors)):
     val = math.sqrt(.5 * (sigma + tau))
     return val
 
-def group_von_mises(groups, von_mises):
-    final = []
-    for group in groups:
-        final.append([])
-        for element in group:
-            final[-1].append(abs(von_mises[element-1])) # stresses is zero indexed
-        # we actually just wanted the maximum
-        final[-1] = max(final[-1])
-    return final
-
+# def group_von_mises(groups, von_mises):
+#     final = []
+#     for group in groups:
+#         final.append([])
+#         for element in group:
+#             final[-1].append(abs(von_mises[element-1])) # stresses is zero indexed
+#         # we actually just wanted the maximum
+#         final[-1] = max(final[-1])
+#     return final
+# 

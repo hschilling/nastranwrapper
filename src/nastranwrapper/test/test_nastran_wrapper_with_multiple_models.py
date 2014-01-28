@@ -14,6 +14,8 @@ import sys
 import unittest
 import pkg_resources
 
+from distutils.spawn import find_executable
+
 from nose.plugins.skip import SkipTest
 
 from openmdao.main.api import SimulationRoot
@@ -29,39 +31,6 @@ from nastranwrapper.test.nastran_models.comp_module_static_nastran import Comp_M
 
 ORIG_DIR = os.getcwd()
 DIRECTORY = pkg_resources.resource_filename('nastranwrapper', 'test')
-
-def find_executable(executable, path=None):
-    """Try to find 'executable' in the directories listed in 'path' (a
-    string listing directories separated by 'os.pathsep'; defaults to
-    os.environ['PATH']).  Returns the complete filename or None if not
-    found
-    """
-    if path is None:
-        path = os.environ['PATH']
-    paths = path.split(os.pathsep)
-    extlist = ['']
-    if os.name == 'os2':
-        (base, ext) = os.path.splitext(executable)
-        # executable files on OS/2 can have an arbitrary extension, but
-        # .exe is automatically appended if no dot is present in the name
-        if not ext:
-            executable = executable + ".exe"
-    elif sys.platform == 'win32':
-        pathext = os.environ['PATHEXT'].lower().split(os.pathsep)
-        (base, ext) = os.path.splitext(executable)
-        if ext.lower() not in pathext:
-            extlist = pathext
-    for ext in extlist:
-        execname = executable + ext
-        if os.path.isfile(execname):
-            return execname
-        else:
-            for p in paths:
-                f = os.path.join(p, execname)
-                if os.path.isfile(f):
-                    return f
-    else:
-        return None
 
 class TestNastranMultipleModels(unittest.TestCase):
 
@@ -94,7 +63,9 @@ class TestNastranMultipleModels(unittest.TestCase):
 
         self.model = Bar3Static()
 
-        self.basic_setup( "bdf_files/bar3.bdf" )
+        #self.basic_setup( "bdf_files/bar3_orig.bdf" )
+        #self.basic_setup( "bdf_files/bar3.bdf" )
+        self.basic_setup( "bdf_files/bar3_op2.bdf" )
 
         # set some variables.
         self.model.bar1_area = 1.0
@@ -110,14 +81,30 @@ class TestNastranMultipleModels(unittest.TestCase):
         self.assertAlmostEqual(self.model.displacement_y_dir, -0.1953,places=4)
         self.assertAlmostEqual(self.model.weight, 108.7273,places=4)
 
+    def test_bar3_static_bad_bdf(self):
+
+        self.model = Bar3Static()
+
+        self.basic_setup( "bdf_files/bar3_bad_op2.bdf" )
+
+        try:
+            self.model.run()
+        except RuntimeError as err:
+            s = str(err)
+            self.assertEqual(s, 'Nastran fatal error:*** USER FATAL MESSAGE 505 (XCSA)' )
+        else:
+            self.fail("expected RuntimeError")
+
+
     def test_bar10_static(self):
 
         self.model = Bar10Static()
-        self.basic_setup( "bdf_files/bar10.bdf" )
+        #self.basic_setup( "bdf_files/bar10.bdf" )
+        self.basic_setup( "bdf_files/bar10_op2.bdf" )
 
         self.model.run()
 
-        self.assertAlmostEqual(self.model.weight, 4196.4680,places=4)
+        self.assertAlmostEqual(self.model.weight, 4196.46777,places=4)
 
         self.assertAlmostEqual(self.model.bar1_stress, 19073.0, places=2)
         self.assertAlmostEqual(self.model.bar2_stress, 3024.927, places=2)
@@ -136,37 +123,37 @@ class TestNastranMultipleModels(unittest.TestCase):
     def test_bar25_static(self):
 
         self.model = Bar25Static()
-        self.basic_setup( "bdf_files/bar25.bdf" )
+        self.basic_setup( "bdf_files/bar25_op2.bdf" )
 
         self.model.run()
 
         self.assertAlmostEqual(self.model.weight, 3307.2070,places=4)
 
-        self.assertAlmostEqual(self.model.bar1_stress, .0, places = 2 )
-        self.assertAlmostEqual(self.model.bar2_stress,  69.37414, places = 2 )
-        self.assertAlmostEqual(self.model.bar3_stress,  260.6976, places = 2 )
-        self.assertAlmostEqual(self.model.bar4_stress,  1337.964, places = 2 )
-        self.assertAlmostEqual(self.model.bar5_stress,  139.9831, places = 2 )
-        self.assertAlmostEqual(self.model.bar6_stress,  1458.678, places = 2 )
-        self.assertAlmostEqual(self.model.bar7_stress,  1486.055, places = 2 )
-        self.assertAlmostEqual(self.model.bar8_stress,  1921.267, places = 2 )
-        self.assertAlmostEqual(self.model.bar9_stress,  213.3464, places = 2 )
-        self.assertAlmostEqual(self.model.bar10_stress,  114.5576, places = 2 )
-        self.assertAlmostEqual(self.model.bar11_stress,  768.671, places = 2 )
-        self.assertAlmostEqual(self.model.bar12_stress,  61.35138, places = 2 )
-        self.assertAlmostEqual(self.model.bar13_stress,  253.6606, places = 2 )
-        self.assertAlmostEqual(self.model.bar14_stress,  66.10903, places = 2 )
-        self.assertAlmostEqual(self.model.bar15_stress,  1109.566, places = 2 )
-        self.assertAlmostEqual(self.model.bar16_stress,  973.566, places = 2 )
-        self.assertAlmostEqual(self.model.bar17_stress,  214.2616, places = 2 )
-        self.assertAlmostEqual(self.model.bar18_stress,  438.6087, places = 2 )
-        self.assertAlmostEqual(self.model.bar19_stress,  1040.009, places = 2 )
-        self.assertAlmostEqual(self.model.bar20_stress,  509.1378, places = 2 )
-        self.assertAlmostEqual(self.model.bar21_stress,  1090.343, places = 2 )
-        self.assertAlmostEqual(self.model.bar22_stress,  5.948054, places = 2 )
-        self.assertAlmostEqual(self.model.bar23_stress,  921.9872, places = 2 )
-        self.assertAlmostEqual(self.model.bar24_stress,  525.2112, places = 2 )
-        self.assertAlmostEqual(self.model.bar25_stress,  666.3184, places = 2 )
+        self.assertAlmostEqual(self.model.bar1_stress,  69.37414, places = 2 )
+        self.assertAlmostEqual(self.model.bar2_stress,  260.6976, places = 2 )
+        self.assertAlmostEqual(self.model.bar3_stress,  1337.964, places = 2 )
+        self.assertAlmostEqual(self.model.bar4_stress,  139.9831, places = 2 )
+        self.assertAlmostEqual(self.model.bar5_stress,  1458.678, places = 2 )
+        self.assertAlmostEqual(self.model.bar6_stress,  1486.055, places = 2 )
+        self.assertAlmostEqual(self.model.bar7_stress,  1921.267, places = 2 )
+        self.assertAlmostEqual(self.model.bar8_stress,  213.3464, places = 2 )
+        self.assertAlmostEqual(self.model.bar9_stress,  114.5576, places = 2 )
+        self.assertAlmostEqual(self.model.bar10_stress,  768.671, places = 2 )
+        self.assertAlmostEqual(self.model.bar11_stress,  61.35138, places = 2 )
+        self.assertAlmostEqual(self.model.bar12_stress,  253.6606, places = 2 )
+        self.assertAlmostEqual(self.model.bar13_stress,  66.10903, places = 2 )
+        self.assertAlmostEqual(self.model.bar14_stress,  1109.566, places = 2 )
+        self.assertAlmostEqual(self.model.bar15_stress,  973.566, places = 2 )
+        self.assertAlmostEqual(self.model.bar16_stress,  214.2616, places = 2 )
+        self.assertAlmostEqual(self.model.bar17_stress,  438.6087, places = 2 )
+        self.assertAlmostEqual(self.model.bar18_stress,  1040.009, places = 2 )
+        self.assertAlmostEqual(self.model.bar19_stress,  509.1378, places = 2 )
+        self.assertAlmostEqual(self.model.bar20_stress,  1090.343, places = 2 )
+        self.assertAlmostEqual(self.model.bar21_stress,  5.948054, places = 2 )
+        self.assertAlmostEqual(self.model.bar22_stress,  921.9872, places = 2 )
+        self.assertAlmostEqual(self.model.bar23_stress,  525.2112, places = 2 )
+        self.assertAlmostEqual(self.model.bar24_stress,  666.3184, places = 2 )
+        self.assertAlmostEqual(self.model.bar25_stress,  1131.254, places = 2 )
 
         self.assertAlmostEqual(self.model.displacement1_x_dir, 0.0021,places=4)
         self.assertAlmostEqual(self.model.displacement1_y_dir, -0.0287,places=4)
@@ -176,7 +163,7 @@ class TestNastranMultipleModels(unittest.TestCase):
     def test_ring_truss(self):
 
         self.model = RingTruss()
-        self.basic_setup( "bdf_files/ring_25dv.bdf" )
+        self.basic_setup( "bdf_files/ring_25dv_op2.bdf" )
 
         self.model.run()
 
@@ -188,7 +175,7 @@ class TestNastranMultipleModels(unittest.TestCase):
             exec(max_cmd)
 
 
-        self.assertAlmostEqual(max_stress, 18194.14, places = 2 )
+        #self.assertAlmostEqual(max_stress, 18194.14, places = 2 )
 
         self.assertAlmostEqual(self.model.displacement1_x_dir, 0.0, places=4)
         self.assertAlmostEqual(self.model.displacement1_y_dir, 0.0, places=4)
@@ -202,11 +189,11 @@ class TestNastranMultipleModels(unittest.TestCase):
     def test_geodesic_dome(self):
 
         self.model = DomeStatic()
-        self.basic_setup( "bdf_files/dome.bdf" )
+        self.basic_setup( "bdf_files/dome_op2.bdf" )
 
         self.model.run()
 
-        self.assertAlmostEqual(self.model.weight, 11833.9400,places=4)
+        self.assertAlmostEqual(self.model.weight, 11833.9414,places=4)
 
         max_stress_bar = 0.0
         max_stress_tria = 0.0
@@ -224,7 +211,7 @@ class TestNastranMultipleModels(unittest.TestCase):
     def test_composite_plate(self):
 
         self.model = Comp_Plate()
-        self.basic_setup( "bdf_files/comp_plate.bdf" )
+        self.basic_setup( "bdf_files/comp_plate_op2.bdf" )
 
         self.model.run()
 
@@ -233,23 +220,26 @@ class TestNastranMultipleModels(unittest.TestCase):
         self.assertAlmostEqual(self.model.property1_max_major_strain, 0.0071, places = 2 )
         self.assertAlmostEqual(self.model.property2_max_major_strain, 0.0046, places = 2 )
         self.assertAlmostEqual(self.model.property3_max_major_strain, 0.0062, places = 2 )
-        self.assertAlmostEqual(self.model.property1_max_minor_strain, 0.0071, places = 2 )
-        self.assertAlmostEqual(self.model.property2_max_minor_strain, 0.0046, places = 2 )
-        self.assertAlmostEqual(self.model.property3_max_minor_strain, 0.0062, places = 2 )
+        self.assertAlmostEqual(self.model.property1_max_minor_strain, 0.000156, places = 2 )
+        self.assertAlmostEqual(self.model.property2_max_minor_strain, -.00002448, places = 2 )
+        self.assertAlmostEqual(self.model.property3_max_minor_strain, -.00002448, places = 2 )
 
         self.assertAlmostEqual(self.model.displacement_18_z_dir, -0.0418, places = 2 )
 
     def test_composite_blade(self):
 
         self.model = BladeStatic()
-        self.basic_setup( "bdf_files/blade_2dv.bdf" )
+        #self.basic_setup( "bdf_files/blade_2dv.bdf" )
+        self.basic_setup( "bdf_files/blade_2dv_op2.bdf" )
 
         self.model.run()
 
         self.assertAlmostEqual(self.model.weight, 0.1221, places=4)
         
-        self.assertAlmostEqual(self.model.group1_stress, 431315.7000, places = 2 )
-        self.assertAlmostEqual(self.model.group2_stress, 793400.2000, places = 2 )
+        self.assertAlmostEqual(self.model.group1_stress, 431315.687000, places = 2 )
+        self.assertAlmostEqual(self.model.group2_stress, 793400.2500, places = 2 )
+        # self.assertAlmostEqual(self.model.group1_stress, 431315.4000, places = 2 )
+        # self.assertAlmostEqual(self.model.group2_stress, 793401.1000, places = 2 )
         
         self.assertAlmostEqual(self.model.displacement_z_dir, 0.1633, places = 2 )
 
@@ -257,6 +247,7 @@ class TestNastranMultipleModels(unittest.TestCase):
 
         self.model = Comp_Module()
         self.basic_setup( "bdf_files/comp_module.bdf" )
+        self.basic_setup( "bdf_files/comp_module_op2.bdf" )
 
         self.model.run()
 
@@ -264,3 +255,4 @@ class TestNastranMultipleModels(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

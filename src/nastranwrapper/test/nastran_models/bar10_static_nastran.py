@@ -16,7 +16,8 @@ class Bar10Static(NastranComponent):
 
     for i in range(1,11):
         cmd = 'bar%d_area  = Float(bar%d_init_area, nastran_card="PROD",\
-                       nastran_id=%d, nastran_fieldnum=3,\
+                       nastran_id=%d, \
+                       nastran_field="A",\
                        iotype="in", units="inch*inch",\
                        desc="Cross-sectional area for bar %d")' %(i,i,i,i)
         exec(cmd)
@@ -29,29 +30,43 @@ class Bar10Static(NastranComponent):
 
     # these are displacements that will be  constrained
 
+    def ydisp1(op2):
+        subcase = 1
+        point_id = 3
+        dy = op2.displacements[subcase].translations[point_id][1]
+        return dy
+
     displacement1_y_dir = Float(2.0, iotype='out',
                                units='inch',
                                desc='Displacement in y-direction',
-                               #nastran_func=ydisp)
-                               nastran_header="displacement vector",
-                               nastran_subcase=1,
-                               nastran_constraints={"POINT ID." : "3"},
-                               nastran_columns=["T2"])
+                               nastran_func=ydisp1)
+                               # nastran_header="displacement vector",
+                               # nastran_subcase=1,
+                               # nastran_constraints={"POINT ID." : "3"},
+                               # nastran_columns=["T2"])
+
+    def ydisp2(op2):
+        subcase = 1
+        point_id = 4
+        dy = op2.displacements[subcase].translations[point_id][1]
+        return dy
 
     displacement2_y_dir = Float(2.0, iotype='out',
                                units='inch',
                                desc='Displacement in y-direction',
-                               #nastran_func=ydisp)
-                               nastran_header="displacement vector",
-                               nastran_subcase=1,
-                               nastran_constraints={"POINT ID." : "4"},
-                               nastran_columns=["T2"])
+                               nastran_func=ydisp2)
+                               # nastran_header="displacement vector",
+                               # nastran_subcase=1,
+                               # nastran_constraints={"POINT ID." : "4"},
+                               # nastran_columns=["T2"])
 
-    def mass(filep):
-        filep.reset_anchor()
-        filep.mark_anchor("MASS AXIS SYSTEM (S)")
-        return filep.transfer_var(1, 2)
+    # def mass(filep):
+    #     filep.reset_anchor()
+    #     filep.mark_anchor("MASS AXIS SYSTEM (S)")
+    #     return filep.transfer_var(1, 2)
 
+    def mass(op2):
+        return op2.grid_point_weight.mass[0]
 
     weight = Float(0., nastran_func=mass, iotype='out', units='lb',
                         desc='Weight of the structure')
@@ -65,17 +80,24 @@ class Bar10Static(NastranComponent):
 
         super(Bar10Static, self).execute()
 
-        stresses = []
-        header = "S T R E S S E S   I N   R O D   E L E M E N T S      ( C R O D )"
+        #stresses = []
+        # header = "S T R E S S E S   I N   R O D   E L E M E N T S      ( C R O D )"
 
-        columns = ["AXIAL STRESS", "TORSIONAL STRESS"]
-        data = self.parser.get(header, None, \
-                               {}, columns)
+        # columns = ["AXIAL STRESS", "TORSIONAL STRESS"]
+        # data = self.parser.get(header, None, \
+        #                        {}, columns)
 
-        for i, stresses in enumerate(data):
-            stress = calculate_stress((float(stresses[0]), float(stresses[1])))
+        # for i, stresses in enumerate(data):
+        #     stress = calculate_stress((float(stresses[0]), float(stresses[1])))
+        #     cmd = "self.bar%d_stress = stress" % (i+1)
+        #     exec(cmd)
+        isubcase = 1
+        for i in range( len( self.op2.rodStress[isubcase].axial ) ) :
+            stress = calculate_stress( ( self.op2.rodStress[isubcase].axial[ i + 1 ],
+                                       self.op2.rodStress[isubcase].torsion[ i + 1 ] ) )
             cmd = "self.bar%d_stress = stress" % (i+1)
             exec(cmd)
+
 
 def calculate_stress((ax, tors)):
     sigma = 2 * ax * ax

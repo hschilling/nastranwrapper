@@ -15,43 +15,51 @@ class Bar3Static(NastranComponent):
     # pylint: disable-msg=E1101
 
     bar1_area  = Float(1., nastran_card="PROD",
-                       nastran_id="11", nastran_fieldnum=3,
+                       nastran_id="11", #nastran_fieldnum=3,
+                       nastran_field='A',
                        low=0.0009, high=10000.,
                        iotype='in', units='inch*inch',
                        desc='Cross-sectional area for bar 1')
 
     bar2_area  = Float(1., nastran_card="PROD",
-                       nastran_id="12", nastran_fieldnum=3,
+                       nastran_id="12", #nastran_fieldnum=3,
+                       nastran_field='A',
                        low=0.0009, high=10000.,
                        iotype='in', units='inch*inch',
                        desc='Cross-sectional area for bar 2')
 
     bar3_area  = Float(1., nastran_card='PROD',
-                       nastran_id="13", nastran_fieldnum=3,
+                       nastran_id="13", #nastran_fieldnum=3,
+                       nastran_field='A',
                        low=0.0009, high=10000.,
                         iotype='in', units='inch*inch',
                         desc='Cross-sectional area for bar 3')
 
-
     load_x_dir = Float(50000.0, nastran_card="FORCE",
-                       nastran_id="8", nastran_fieldnum=5,
+                       nastran_id="8", #nastran_fieldnum=5,
+                       nastran_field='xyz',
+                       nastran_field_index = 1,
                        iotype='in', units='lb*inch',
                               desc='Load in X direction')
 
     load_y_dir = Float(100000.0, nastran_card="FORCE",
-                       nastran_id="8", nastran_fieldnum=6,
+                       nastran_id="8", #nastran_fieldnum=6,
+                       nastran_field='xyz',
+                       nastran_field_index = 2,
                        iotype='in', units='lb*inch',
                         desc='Load in Y direction')
 
     loadmag = Float(1.0, nastran_card="FORCE",
-                    nastran_id="8", nastran_fieldnum=4,
+                    nastran_id="8", #nastran_fieldnum=4,
+                    nastran_field='mag',
                     iotype="in", units="lb",
                     desc="magnitude of the force")
 
     Youngs_Modulus = Float(30000000.0,
                            nastran_card="MAT1",
                            nastran_id="5",
-                           nastran_fieldnum=2,
+                           #nastran_fieldnum=2,
+                           nastran_field='e',
                            iotype='in',
                            units='lb/(inch*inch)',
                            desc='Youngs Modulus')
@@ -59,7 +67,8 @@ class Bar3Static(NastranComponent):
     weight_density = Float(0.284,
                            nastran_card="MAT1",
                            nastran_id="5",
-                           nastran_fieldnum=5,
+                           #nastran_fieldnum=5,
+                           nastran_field='rho',
                            iotype='in', units='lb/(inch**3)',
                            desc='weight density of all bars')
 
@@ -87,31 +96,32 @@ class Bar3Static(NastranComponent):
                         units='lb/(inch*inch)',
                         desc='Stress in bar 3')
 
-    displacement_x_dir = Float(0., iotype='out',
+    def xdisp(op2,isubcase,point_id):
+        dx = op2.displacements[isubcase].translations[point_id][0]
+        return dx
+
+    def ydisp(op2,isubcase,point_id):
+        dy = op2.displacements[isubcase].translations[point_id][1]
+        return dy
+
+    displacement_x_dir = Float(0.0, iotype='out',
                                units='inch',
                                desc='Displacement in x-direction',
-                               #nastran_func=xdisp)
-                               nastran_header="displacement vector",
-                               nastran_subcase=1,
-                               nastran_constraints={"POINT ID." : "1"},
-                               nastran_columns=["T1"])
-
-    displacement_y_dir = Float(0., iotype='out',
+                               nastran_func=xdisp,
+                               nastran_args=(1,1)
+                               )
+    displacement_y_dir = Float(0.0, iotype='out',
                                units='inch',
                                desc='Displacement in y-direction',
-                               #nastran_func=ydisp)
-                               nastran_header="displacement vector",
-                               nastran_subcase=1,
-                               nastran_constraints={"POINT ID." : "1"},
-                               nastran_columns=["T2"])
+                               nastran_func=ydisp,
+                               nastran_args=(1,1)
+                               )
 
     #frequency = Float(0.1, iotype='out', units='Hz',
     #                    desc='Frequency in Hertz')
 
-    def mass(filep):
-        filep.reset_anchor()
-        filep.mark_anchor("MASS AXIS SYSTEM (S)")
-        return filep.transfer_var(1, 2)
+    def mass(op2):
+        return op2.grid_point_weight.mass[0]
 
     weight = Float(0., nastran_func=mass, iotype='out', units='lb',
                         desc='Weight of the structure')
@@ -136,18 +146,40 @@ class Bar3Static(NastranComponent):
 
 
         stresses = []
-        header = "S T R E S S E S   I N   R O D   E L E M E N T S      ( C R O D )"
+        # header = "S T R E S S E S   I N   R O D   E L E M E N T S      ( C R O D )"
         for i in range(1,4):
-            constraints = {"ELEMENT ID." : str(i)}
+            # constraints = {"ELEMENT ID." : str(i)}
 
-            columns = ["AXIAL STRESS", "TORSIONAL STRESS"]
-            [[axial, torsion]] = self.parser.get(header, None, \
-                                             constraints, columns)
-            axial, torsion = map(float, [axial, torsion])
+            # columns = ["AXIAL STRESS", "TORSIONAL STRESS"]
+            # [[axial, torsion]] = self.parser.get(header, None, \
+            #                                  constraints, columns)
+            # axial_old, torsion_old = map(float, [axial, torsion])
+
+            isubcase = 1
+            #axial = self.op2.rodStress[isubcase].axial[ i ]
+            #torsion = self.op2.rodStress[isubcase].torsion[ i  ]
+            axial = self.op2.rodStress[isubcase].axial[ i ]
+            torsion = self.op2.rodStress[isubcase].torsion[ i  ]
+            #import pdb; pdb.set_trace()
+            
             stresses.append((axial, torsion))
 
         [self.bar1_stress, self.bar2_stress, self.bar3_stress] = \
                           map(calculate_stress, stresses)
+
+        # stresses = []
+        # header = "S T R E S S E S   I N   R O D   E L E M E N T S      ( C R O D )"
+        # for i in range(1,4):
+        #     constraints = {"ELEMENT ID." : str(i)}
+
+        #     columns = ["AXIAL STRESS", "TORSIONAL STRESS"]
+        #     [[axial, torsion]] = self.parser.get(header, None, \
+        #                                      constraints, columns)
+        #     axial, torsion = map(float, [axial, torsion])
+        #     stresses.append((axial, torsion))
+
+        # [self.bar1_stress, self.bar2_stress, self.bar3_stress] = \
+        #                   map(calculate_stress, stresses)
 
 
 
