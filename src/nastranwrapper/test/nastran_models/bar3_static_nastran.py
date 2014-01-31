@@ -1,5 +1,3 @@
-import math
-
 from openmdao.lib.datatypes.api import Float
 
 from nastranwrapper.nastran import NastranComponent
@@ -9,35 +7,35 @@ class Bar3Static(NastranComponent):
     """ Model of a three bar truss - Fortran Implementation."""
 
     bar1_area  = Float(1., nastran_card="PROD",
-                       nastran_id="11", #nastran_fieldnum=3,
+                       nastran_id="11",
                        nastran_field='A',
                        low=0.0009, high=10000.,
                        iotype='in', units='inch*inch',
                        desc='Cross-sectional area for bar 1')
 
     bar2_area  = Float(1., nastran_card="PROD",
-                       nastran_id="12", #nastran_fieldnum=3,
+                       nastran_id="12",
                        nastran_field='A',
                        low=0.0009, high=10000.,
                        iotype='in', units='inch*inch',
                        desc='Cross-sectional area for bar 2')
 
     bar3_area  = Float(1., nastran_card='PROD',
-                       nastran_id="13", #nastran_fieldnum=3,
+                       nastran_id="13",
                        nastran_field='A',
                        low=0.0009, high=10000.,
                         iotype='in', units='inch*inch',
                         desc='Cross-sectional area for bar 3')
 
-    bar1_stress = Float(0., #nastran_func=stress1,
+    bar1_stress = Float(0., 
                         iotype='out',
                         units='lb/(inch*inch)',
                         desc='Stress in bar 1')
-    bar2_stress = Float(0., #nastran_func=stress2,
+    bar2_stress = Float(0., 
                         iotype='out',
                         units='lb/(inch*inch)',
                         desc='Stress in bar 2')
-    bar3_stress = Float(0., #nastran_func=stress3,
+    bar3_stress = Float(0., 
                         iotype='out',
                         units='lb/(inch*inch)',
                         desc='Stress in bar 3')
@@ -49,35 +47,20 @@ class Bar3Static(NastranComponent):
     displacement_x_dir = Float(0.20, iotype='out',
                                units='inch',
                                desc='Displacement in y-direction',
-                               nastran_func=disp,
-                               nastran_args={'isubcase':1,'id':1,'xyz':0}
+                                nastran_table='displacement vector',
+                                nastran_subcase=1,
+                                nastran_id=1,
+                                nastran_column='T1'
                                )
 
     displacement_y_dir = Float(0.05, iotype='out',
                                units='inch',
                                desc='Displacement in y-direction',
-                               nastran_func=disp,
-                               nastran_args={'isubcase':1,'id':1,'xyz':1}
+                                nastran_table='displacement vector',
+                                nastran_subcase=1,
+                                nastran_id=1,
+                                nastran_column='T2'
                                )
-
-
-    # displacement_x_dir = Float(0.20, iotype='out',
-    #                            units='inch',
-    #                            desc='Displacement in x-direction',
-    #                            #nastran_func=xdisp)
-    #                            nastran_header="displacement vector",
-    #                            nastran_subcase=1,
-    #                            nastran_constraints={"POINT ID." : "1"},
-    #                            nastran_columns=["T1"])
-
-    # displacement_y_dir = Float(0.05, iotype='out',
-    #                            units='inch',
-    #                            desc='Displacement in y-direction',
-    #                            #nastran_func=ydisp)
-    #                            nastran_header="displacement vector",
-    #                            nastran_subcase=1,
-    #                            nastran_constraints={"POINT ID." : "1"},
-    #                            nastran_columns=["T2"])
 
     def mass(op2):
         return op2.grid_point_weight.mass[0]
@@ -85,31 +68,6 @@ class Bar3Static(NastranComponent):
 
     weight = Float(0., nastran_func=mass, iotype='out', units='lb',
                         desc='Weight of the structure')
-
-    # def ydisp(f06):
-    #     subcase = 1
-    #     point_id = 1
-    #     dy = f06.displacements[subcase].translations[point_id][1]
-    #     return dy
-
-    # displacement_y_dir = Float(0.05, iotype='out',
-    #                            units='inch',
-    #                            desc='Displacement in y-direction',
-    #                            nastran_func=ydisp)
-
-    # def xdisp(f06):
-    #     subcase = 1
-    #     point_id = 1
-    #     dx = f06.displacements[subcase].translations[point_id][0]
-    #     return dx
-
-    # displacement_x_dir = Float(0.05, iotype='out',
-    #                            units='inch',
-    #                            desc='Displacement in x-direction',
-    #                            nastran_func=xdisp)
-
-
-
 
     def execute(self):
         """ Simulates the analysis of a three bar truss structure.

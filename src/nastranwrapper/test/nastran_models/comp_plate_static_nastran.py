@@ -1,10 +1,8 @@
 """
     comp_plate_static_nastran.py - Composite plate implementation example.
 """
-import math
 
 from openmdao.lib.datatypes.api import Float
-from openmdao.util.filewrap import FileParser
 
 from nastranwrapper.nastran import NastranComponent
 
@@ -34,15 +32,13 @@ class Comp_Plate(NastranComponent):
     property2_max_major_minor_strain = Float(0.0, iotype="out", desc="max major minor strain for pcomp 802")
     property3_max_major_minor_strain = Float(0.0, iotype="out", desc="max major minor strain for pcomp 803")
 
-    def disp(op2,**args):
-        d = op2.displacements[args['isubcase']].translations[args['id']][args['xyz']]
-        return d
-
     displacement_18_z_dir = Float(1.25, iotype='out',
-                                units='inch',
-                                desc='Displacement in z-direction',
-                                nastran_func=disp,
-                                nastran_args={'isubcase':1,'id':18,'xyz':2}
+                                  units='inch',
+                                  desc='Displacement in z-direction',
+                                  nastran_table='displacement vector',
+                                  nastran_subcase=1,
+                                  nastran_id=18,
+                                  nastran_column='T3'
                                 )
     def mass(op2):
         return op2.grid_point_weight.mass[0]
@@ -111,34 +107,6 @@ class Comp_Plate(NastranComponent):
         return max_minor_strain_by_pid, max_major_strain_by_pid
         
 
-    def nastran_maker_hook(self, maker):
-
-        # We want to keep the ratios of ply thickness
-        # of each ply, but we want to change them in relation
-        # to the overall thickness (t1, t2, and t3)
-
-        # We'll use NastranMaker to set the individual ply's
-        # thicknesses.
-
-        super(Comp_Plate, self).nastran_maker_hook(maker)
-
-        value_distribution = {"801" : [.25,.25,.25,.25],
-                              "802" : [.25,.25,.25,.25],
-                              "803" : [.25,.25,.25,.25]}
-
-        
-        # for each pcomp, we have to set all four plys
-        for pcomp in range(1,4): # there are three pcomps
-            id = str(800 + pcomp)
-            values = []
-            for x in value_distribution[id]:
-                values.append(x * self.__getattribute__("thick%d" % pcomp) )
-
-            for ply in range(4): # there are four plys
-                plynum = 12 + 4 * ply + 2 * (ply/2)
-                maker.set("PCOMP", id,
-                          plynum, values[ply])
-
     def update_hook(self):
 
         # We want to keep the ratios of ply thickness
@@ -155,17 +123,11 @@ class Comp_Plate(NastranComponent):
         
         # for each pcomp, we have to set all four plys
         for pcomp in range(1,4): # there are three pcomps
-            id = str(800 + pcomp)
+            pid = str(800 + pcomp)
             values = []
-            for x in value_distribution[id]:
+            for x in value_distribution[pid]:
                 values.append(x * self.__getattribute__("thick%d" % pcomp) )
 
             for ply in range(4): # there are four plys
-                #plynum = 12 + 4 * ply + 2 * (ply/2)
-                #maker.set("PCOMP", id,
-                #          plynum, values[ply])
-                # PCOMP    801                    8100.    STRN                           +      A
-                # +      A 801    .66405   0.      YES     801    .66405  45.      YES    +      B
-                # +      B 801    .66405  -45.     YES     801    .66405   0.      YES
-                pcomp = self.bdf.Property( int(id) , "qqq") 
+                pcomp = self.bdf.Property( int(pid) , "dummy message") 
                 pcomp.plies[ply][1] = values[ply]

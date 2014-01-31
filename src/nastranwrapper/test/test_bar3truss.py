@@ -26,7 +26,7 @@ class TestBar3Truss(unittest.TestCase):
         static.stderr = os.devnull
         static.nastran_filename = "bdf_files/bar3_op2.bdf"
         static.nastran_command = "python"
-        static.nastran_command_args = ["fake_nastran.py", #qqq
+        static.nastran_command_args = ["fake_nastran.py", 
                                        "bdf_files/test_bar3truss_correct_input.bdf",
                                        "test_bar3truss_correct_output.out",
                                        "test_bar3truss_correct_output.op2",

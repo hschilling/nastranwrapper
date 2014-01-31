@@ -2,8 +2,6 @@
     bar10_static_nastran.py - Ten Bar truss example structures problem. 
     This openMDAO component contains a ten bar truss example referenced in CometBoards
 """
-import math
-
 from openmdao.lib.datatypes.api import Float
 
 from nastranwrapper.nastran import NastranComponent
@@ -24,47 +22,29 @@ class Bar10Static(NastranComponent):
         exec(cmd)
 
     # these are stresses that will be  constrained
-
     for i in range(1,11):
         cmd = "bar%d_stress = Float(0., iotype='out', units='lb/(inch*inch)', desc='Axial stress in element %d')" %(i,i)
         exec(cmd)
 
     # these are displacements that will be  constrained
 
-    def ydisp1(op2):
-        subcase = 1
-        point_id = 3
-        dy = op2.displacements[subcase].translations[point_id][1]
-        return dy
-
     displacement1_y_dir = Float(2.0, iotype='out',
                                units='inch',
                                desc='Displacement in y-direction',
-                               nastran_func=ydisp1)
-                               # nastran_header="displacement vector",
-                               # nastran_subcase=1,
-                               # nastran_constraints={"POINT ID." : "3"},
-                               # nastran_columns=["T2"])
-
-    def ydisp2(op2):
-        subcase = 1
-        point_id = 4
-        dy = op2.displacements[subcase].translations[point_id][1]
-        return dy
+                               nastran_table='displacement vector',
+                               nastran_subcase=1,
+                               nastran_id=3,
+                               nastran_column='T2'
+                               )
 
     displacement2_y_dir = Float(2.0, iotype='out',
                                units='inch',
                                desc='Displacement in y-direction',
-                               nastran_func=ydisp2)
-                               # nastran_header="displacement vector",
-                               # nastran_subcase=1,
-                               # nastran_constraints={"POINT ID." : "4"},
-                               # nastran_columns=["T2"])
-
-    # def mass(filep):
-    #     filep.reset_anchor()
-    #     filep.mark_anchor("MASS AXIS SYSTEM (S)")
-    #     return filep.transfer_var(1, 2)
+                               nastran_table='displacement vector',
+                               nastran_subcase=1,
+                               nastran_id=4,
+                               nastran_column='T2'
+                               )
 
     def mass(op2):
         return op2.grid_point_weight.mass[0]
@@ -81,54 +61,11 @@ class Bar10Static(NastranComponent):
 
         super(Bar10Static, self).execute()
 
-        #stresses = []
-        # header = "S T R E S S E S   I N   R O D   E L E M E N T S      ( C R O D )"
-
-        # columns = ["AXIAL STRESS", "TORSIONAL STRESS"]
-        # data = self.parser.get(header, None, \
-        #                        {}, columns)
-
-        # for i, stresses in enumerate(data):
-        #     stress = calculate_stress((float(stresses[0]), float(stresses[1])))
-        #     cmd = "self.bar%d_stress = stress" % (i+1)
-        #     exec(cmd)
+        # Get stresses from the table with this header
+        #   S T R E S S E S   I N   R O D   E L E M E N T S      ( C R O D )
         isubcase = 1
         for i in range( len( self.op2.rodStress[isubcase].axial ) ) :
             stress = calculate_stress( ( self.op2.rodStress[isubcase].axial[ i + 1 ],
                                        self.op2.rodStress[isubcase].torsion[ i + 1 ] ) )
             cmd = "self.bar%d_stress = stress" % (i+1)
             exec(cmd)
-
-if __name__ == "__main__": # pragma: no cover
-
-    truss = Bar10Static()
-    truss.nastran_command = "/msc/nastran/bin/nastran"
-    truss.nastran_filename = "bdf_files/bar10.bdf"
-    truss.delete_tmp_files = True
-
-    truss.run()
-
-    print " "
-    print "Weight = %8.4f" % (truss.weight)
-    print " "
-    print "Design: "
-    for i in range(1,11):
-         cmdprint = "print 'Design variable %d = ', truss.bar%d_area" %(i,i)
-         exec(cmdprint)
-    print " "
-    print "Constraints:"
-
-    max_stress = 0.0
-    for i in range(1,11):
-         cmdprint = "print 'Axial Stress in Element %d = ', truss.bar%d_stress" %(i,i)
-         exec(cmdprint)
-         max_cmd = "max_stress = max(max_stress, truss.bar%d_stress)" %i
-         exec(max_cmd)
-
-    print " "
-    print "Maximum Stress = ", max_stress
-
-    print " "
-    print "Displacement in y-dir at node 3  =  %8.4f" % (truss.displacement1_y_dir)
-    print "Displacement in y-dir at node 4  =  %8.4f" % (truss.displacement2_y_dir)
-    print " "

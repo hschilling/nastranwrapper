@@ -10,7 +10,6 @@
 """
 
 import os
-import sys
 import unittest
 import pkg_resources
 
@@ -63,8 +62,6 @@ class TestNastranMultipleModels(unittest.TestCase):
 
         self.model = Bar3Static()
 
-        #self.basic_setup( "bdf_files/bar3_orig.bdf" )
-        #self.basic_setup( "bdf_files/bar3.bdf" )
         self.basic_setup( "bdf_files/bar3_op2.bdf" )
 
         # set some variables.
@@ -99,7 +96,6 @@ class TestNastranMultipleModels(unittest.TestCase):
     def test_bar10_static(self):
 
         self.model = Bar10Static()
-        #self.basic_setup( "bdf_files/bar10.bdf" )
         self.basic_setup( "bdf_files/bar10_op2.bdf" )
 
         self.model.run()
@@ -174,9 +170,6 @@ class TestNastranMultipleModels(unittest.TestCase):
             max_cmd = "max_stress = max(max_stress, self.model.bar%d_stress)" %i
             exec(max_cmd)
 
-
-        #self.assertAlmostEqual(max_stress, 18194.14, places = 2 )
-
         self.assertAlmostEqual(self.model.displacement1_x_dir, 0.0, places=4)
         self.assertAlmostEqual(self.model.displacement1_y_dir, 0.0, places=4)
         self.assertAlmostEqual(self.model.displacement2_x_dir, -0.0049,places=4)
@@ -229,7 +222,6 @@ class TestNastranMultipleModels(unittest.TestCase):
     def test_composite_blade(self):
 
         self.model = BladeStatic()
-        #self.basic_setup( "bdf_files/blade_2dv.bdf" )
         self.basic_setup( "bdf_files/blade_2dv_op2.bdf" )
 
         self.model.run()
@@ -238,8 +230,6 @@ class TestNastranMultipleModels(unittest.TestCase):
         
         self.assertAlmostEqual(self.model.group1_stress, 431315.687000, places = 2 )
         self.assertAlmostEqual(self.model.group2_stress, 793400.2500, places = 2 )
-        # self.assertAlmostEqual(self.model.group1_stress, 431315.4000, places = 2 )
-        # self.assertAlmostEqual(self.model.group2_stress, 793401.1000, places = 2 )
         
         self.assertAlmostEqual(self.model.displacement_z_dir, 0.1633, places = 2 )
 

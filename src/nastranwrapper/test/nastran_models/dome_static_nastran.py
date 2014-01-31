@@ -2,8 +2,6 @@
     dome_static_nastran.py - implementation for the geodesic dome
     example structures problem referenced in CometBoards
 """
-import math
-
 from openmdao.lib.datatypes.api import Float
 
 from nastranwrapper.nastran import NastranComponent
@@ -36,7 +34,6 @@ class DomeStatic(NastranComponent):
         exec(cmd)
 
     # these are stresses that will be  constrained
-
     for i in range(1,157):
         cmd = "bar%d_stress = Float(0., iotype='out', units='lb/(inch*inch)', desc='Axial stress in element %d')" %(i,i)
         exec(cmd)
@@ -57,24 +54,10 @@ class DomeStatic(NastranComponent):
             the Ring output.
         """
 
-        # process all the input variables and convert them
-        # to something nastran will enjoy
-
-        # run, nastran, run
         super(DomeStatic, self).execute()
 
-        # stresses_bars = []
-        # header = "S T R E S S E S   I N   R O D   E L E M E N T S      ( C R O D )"
-
-        # columns = ["AXIAL STRESS", "TORSIONAL STRESS"]
-        # data = self.parser.get(header, None, \
-        #                        {}, columns)
-
-        # for i, stresses_bars in enumerate(data):
-        #     stress = calculate_stress((float(stresses_bars[0]), float(stresses_bars[1])))
-        #     cmd = "self.bar%d_stress = stress" % (i+1)
-        #     exec(cmd)
-
+        # get stresses from table with header
+        #   S T R E S S E S   I N   R O D   E L E M E N T S      ( C R O D )
         isubcase = 1
         for i in range( len( self.op2.rodStress[isubcase].axial ) ) :
             stress = calculate_stress( ( self.op2.rodStress[isubcase].axial[ i + 1 ],
@@ -82,25 +65,10 @@ class DomeStatic(NastranComponent):
             cmd = "self.bar%d_stress = stress" % (i+1)
             exec(cmd)
 
-        # stresses_tria = []
-        # header = "S T R E S S E S   I N   T R I A N G U L A R   E L E M E N T S   ( T R I A 3 )"
-
-        # columns = ["VON MISES"]
-        # data = self.parser.get(header, None, \
-        #                        {}, columns, row_width=15)
-
-        # columns = ["VON MISES"]
-        # data = self.parser.get(header, None, \
-        #                        {}, columns, row_width=2)
+        # get stresses from table with header
+        #   S T R E S S E S   I N   T R I A N G U L A R   E L E M E N T S   ( T R I A 3 )"
         for i in range(157,253):
-            
-            biggest = self.op2.plateStress[isubcase].ovmShear[i]['C'][0]
-            # values = map(lambda x: x[0],element)
-            # biggest = -1.0E+10
-            # for value in values:
-            #     if value != '':
-            #        biggest = max(float(value),biggest)
-            #von_mises.append(biggest)
+            biggest = self.op2.plateStress[isubcase].ovmShear[i]['CEN/3'][0]
             cmd = "self.tria%d_stress = biggest" %i
             exec(cmd)
 

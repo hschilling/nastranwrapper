@@ -2,13 +2,19 @@
   
 """
 import sys
-from os import path
+import os.path
 from tempfile import mkdtemp, gettempdir
 from shutil import rmtree
+
+import logging
 
 from openmdao.lib.components.external_code import ExternalCode
 
 from openmdao.lib.datatypes.api import Float, Int, Array, Str, Bool, List
+
+from pyNastran.bdf.bdf import BDF
+from pyNastran.op2.op2 import OP2
+#from pyNastran.f06.f06 import F06
 
 class NastranComponent(ExternalCode):
     """All Nastran-capable components should be subclasses of NastranComponent.
@@ -137,12 +143,6 @@ class NastranComponent(ExternalCode):
                 if trait.nastran_func:
                     output_variables[name] = trait
 
-
-                #qqq begin
-                # if trait.pynastran_func:
-                #     output_pynastran_variables[name] = trait
-                #qqq end
-
                 # this is the grid method of accessing. We have to
                 # specify a header, row, and attribute and
                 # the output variable will be set to that value
@@ -157,10 +157,7 @@ class NastranComponent(ExternalCode):
 
         # let's do our work in a tmp dir
         tmpdir = mkdtemp(dir = self.output_tempdir_dir)
-        tmppath = path.join(tmpdir, "input.bdf")
-
-        #### qqq pyNastran way to take inputs and write them to the BDF file
-        from pyNastran.bdf.bdf import BDF
+        tmppath = os.path.join(tmpdir, "input.bdf")
 
         pyNastran_get_card_methods = {
             'PSHELL': 'Property',
@@ -170,17 +167,25 @@ class NastranComponent(ExternalCode):
             }
 
 
-        import logging
+        ###################
+        # Read, modify and re-write BDF
+        ###################
+        import time
+        
+        t0 = time.time()
+
         self.bdf = BDF(debug=False,log=logging.getLogger() )
         #mesh.cardsToRead = set(['GRID','CQUAD4','PSHELL','MAT1','CORD2R'])
         # not required, but lets you limit the cards
         # if there's a problem with one
 
-
-        #from os.path import split
         self.bdf.readBDF(self.nastran_filename,xref=True) # reads the bdf
-        # bdf_dirname, bdf_filename = split( self.nastran_filename ) 
-        # bdf.readBDF(bdf_filename,includeDir=bdf_dirname,xref=True) # reads the bdf
+
+        t1 = time.time()
+        print "read bdf time", t1 - t0
+
+
+        t0 = time.time()
         for name, trait in smart_replacements.iteritems():
             # for now need to handle PROD, FORCE, MAT1
 
@@ -244,16 +249,34 @@ class NastranComponent(ExternalCode):
             #     #           trait.nastran_id,
             #     #           trait.nastran_fieldnum, value)
 
-        self.update_hook()
+        t1 = time.time()
+        print "modify bdf variables time", t1 - t0
 
+        ###################
+        # update hook
+        ###################
+        t0 = time.time()
+        self.update_hook()
+        t1 = time.time()
+        print "update hook time", t1 - t0
+
+        ###################
+        # write bdf
+        ###################
+        t0 = time.time()
         #self.bdf.write_bdf(tmppath)
         self.bdf.write_bdf(tmppath,precision='double',size=16)
 
-        # what is the new file called?
-        self.output_filename = path.join(tmpdir, "input.out")
+        t1 = time.time()
+        print "re-write BDF time", t1 - t0
 
-        # perhaps this should be logged, or something
-        print self.output_filename
+        t0 = time.time()
+        ###################
+        # Run Nastran via subprocess
+        ###################
+        # what is the new file called?
+        self.output_filename = os.path.join(tmpdir, "input.out")
+        print self.output_filename # perhaps this should be logged, or something
 
         # Then we run the nastran file
         if self.nastran_command == 'python':  # True when using fake_nastran.py
@@ -266,45 +289,50 @@ class NastranComponent(ExternalCode):
         self.command.extend(["batch=no", "out=" + tmpdir, "dbs=" + tmpdir])
 
         # This calls ExternalCode's execute which will run
-        # the nastran command via subprocess
         super(NastranComponent, self).execute()
 
+        t1 = time.time()
+        print "Nastran run time", t1 - t0
+
+        t0 = time.time()
         ###################
-        # OP2
-        from pyNastran.op2.op2 import OP2
+        # read OP2
+        ###################
         op2_filename = self.output_filename[:-4] + '.op2'
         f06_filename = self.output_filename
         self.op2 = OP2(op2_filename, debug=False,log=None)
         #self.op2.make_op2_debug = True   # can create a HUGE file that slows things down a lot
         #self.op2.readOP2()
 
-        from pyNastran.f06.f06 import F06, FatalError
-        self.f06 = F06(f06_filename,debug=False)  # debug True makes it slow
-        import os
+        from pyNastran.f06.f06 import FatalError
         if os.path.exists(op2_filename):
             try:
                 self.op2.read_op2()  # doesn't tell you what the error message is
             except FatalError:
                 try:
+                    from pyNastran.f06.f06 import F06
+                    self.f06 = F06(f06_filename,debug=False)  # debug True makes it slow
                     self.f06.read_f06()
                 except FatalError as err:
                     raise RuntimeError('Nastran fatal error:' + str( err ) )
         elif os.path.exists(f06_filename):
             try:
+                from pyNastran.f06.f06 import F06
+                self.f06 = F06(f06_filename,debug=False)  # debug True makes it slow
                 self.f06.read_f06()  # this will stop with a FatalError with the proper FATAL message
             except FatalError as err:
                 raise RuntimeError('Nastran fatal error:' + str( err ) )
         else:
             raise RuntimeError('nastran fatal error' )
 
-
+        t1 = time.time()
+        print "Read OP2 time", t1 - t0
         
-        #import pdb; pdb.set_trace()
+        t0 = time.time()
         ###################
-
-
-        # qqq start
         # get the outputs using pyNastran
+        ###################
+        
         if 0:
             from pyNastran.f06.f06 import F06, FatalError
             self.f06 = F06(self.output_filename,debug=False)  # debug True makes it slow
@@ -345,6 +373,10 @@ class NastranComponent(ExternalCode):
                         #output_trait.nastran_func(self.f06))
                         output_trait.nastran_func(self.op2))
 
+        t1 = time.time()
+        print "Get values from OP2 time", t1 - t0
+
+
         # get rid of our tmp dir
         tmpdir_to_delete = ""
         if self.delete_tmp_files:
@@ -367,18 +399,18 @@ class NastranComponent(ExternalCode):
             if tmpdir_to_delete:
                 rmtree(tmpdir_to_delete)
 
-    def nastran_maker_hook(self, maker):
-        """A subclass can override this function to dynamically
-        add variables to NastranMaker.
+    # def nastran_maker_hook(self, maker):
+    #     """A subclass can override this function to dynamically
+    #     add variables to NastranMaker.
 
-        maker: NastranMaker object
-            This NastranMaker object already has all the variables that
-            were specified in the traits.
+    #     maker: NastranMaker object
+    #         This NastranMaker object already has all the variables that
+    #         were specified in the traits.
 
-        The return will be ignored. Right after this function exits,
-        the Nastran input file will be written out to a file.
-        """
-        pass
+    #     The return will be ignored. Right after this function exits,
+    #     the Nastran input file will be written out to a file.
+    #     """
+    #     pass
 
     def update_hook(self):
         """

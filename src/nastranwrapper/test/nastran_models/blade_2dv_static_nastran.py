@@ -2,7 +2,6 @@
     blade_2dv_static_nastran.py - Blade implementation for a quad
     example structures problem. 
 """
-import math
 
 from openmdao.lib.datatypes.api import Float
 
@@ -24,14 +23,13 @@ class BladeStatic(NastranComponent):
                        iotype='in', units='inch',
                        desc='Thickness for group 2')
 
-    # these are actually groups of stresses that will be
-    # constrained
+    # these are actually groups of stresses that will be constrained
 
-    group1_stress = Float(0., #nastran_func=stress1,
+    group1_stress = Float(0., 
                         iotype='out',
                         units='lb/(inch*inch)',
                         desc='Stress in group 1')
-    group2_stress = Float(0., #nastran_func=stress2,
+    group2_stress = Float(0., 
                         iotype='out',
                         units='lb/(inch*inch)',
                         desc='Stress in group 2')
@@ -43,8 +41,10 @@ class BladeStatic(NastranComponent):
     displacement_z_dir = Float(0.1632, iotype='out',
                                units='inch',
                                desc='Displacement in z-direction',
-                               nastran_func=disp,
-                               nastran_args={'isubcase':1,'id':28,'xyz':2}
+                               nastran_table='displacement vector',
+                               nastran_subcase=1,
+                               nastran_id=28,
+                               nastran_column='T3'
                                )
     def mass(op2):
         return op2.grid_point_weight.mass[0]
@@ -60,48 +60,19 @@ class BladeStatic(NastranComponent):
 
         super(BladeStatic, self).execute()
 
-        # stresses = []
-        # header = "S T R E S S E S   I N   Q U A D R I L A T E R A L   E L E M E N T S   ( Q U A D 4 )        OPTION = BILIN"
-
-        # columns = ["VON MISES"]
-        # data = self.parser.get(header, None, \
-        #                        {}, columns, row_width=15)
-        # von_mises =[]
-        # for element in data:
-        #     # element looks like  [['9.859733E+04'], ['2.391967E+05'], [''], ['9.494320E+04'], ['2.176725E+05'], [''], ['8.193106E+04'], ['2.595611E+05'], [''], ['1.056561E+05'], ['2.623137E+05'], [''], ['1.184271E+05'], ['2.195168E+05'], ['']]
-        #     values = map(lambda x: x[0],element)
-        #     # values looks like  ['9.859733E+04', '2.391967E+05', '', '9.494320E+04', '2.176725E+05', '', '8.193106E+04', '2.595611E+05', '', '1.056561E+05', '2.623137E+05', '', '1.184271E+05', '2.195168E+05', '']
-        #     biggest = -1.0E+10
-        #     for value in values: 
-        #         if value != '':
-        #            biggest = max(float(value),biggest)  
-        #     von_mises.append(biggest)
+        # get stresses from table with header
+        #  S T R E S S E S   I N   Q U A D R I L A T E R A L   E L E M E N T S   ( Q U A D 4 )        OPTION = BILIN
 
         # self.f06.plateStress[1].ovmShear[1]
         # looks like this
         #{1: [94943.2, 217672.5], u'C': [98597.33, 239196.7], 83: [105656.1, 262313.7], 82: [118427.1, 219516.8], 2: [81931.06, 259561.1]}
         # where the second 1 is a key in ovmShear indicating the element id. The keys in the dictionary
         #   inside of that are grid-id values
-
         isubcase = 1
         von_mises =[]
         for eid, ovmShear in self.op2.plateStress[isubcase].ovmShear.iteritems() :
             biggest = max( max( s[0], s[1] ) for s in ovmShear.values() )
             von_mises.append(biggest)
-            # cmd = "self.tria%d_stress = biggest" %i
-            # exec(cmd)
-                
-        # for i in range(157,253):
-        #     import pdb; pdb.set_trace()
-        #     biggest = self.f06.plateStress[isubcase].ovmShear[i]['C'][0]
-        #     # values = map(lambda x: x[0],element)
-        #     # biggest = -1.0E+10
-        #     # for value in values:
-        #     #     if value != '':
-        #     #        biggest = max(float(value),biggest)
-        #     #von_mises.append(biggest)
-        #     cmd = "self.tria%d_stress = biggest" %i
-        #     exec(cmd)
 
         groups = [range(25601,25945+1), range(1, 25600+1)]
 
