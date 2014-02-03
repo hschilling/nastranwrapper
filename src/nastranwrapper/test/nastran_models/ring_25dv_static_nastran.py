@@ -27,77 +27,78 @@ class RingTruss(NastranComponent):
         exec(cmd)
 
     # these are displacements that will be  constrained
-    displacement1_x_dir = Float(1.25, iotype='out',
-                                units='inch',
-                                desc='Displacement in x-direction',
-                                nastran_table='displacement vector',
-                                nastran_subcase=1,
-                                nastran_id=10,
-                                nastran_column='T1'
-                                )
+    displacement1_x_dir = Float(0.20, iotype='out',
+                               units='inch',
+                               desc='Displacement in x-direction',
+                               nastran_header="displacements",
+                               nastran_subcase=1,
+                               nastran_time_step_freq_mode=None,
+                               nastran_constraints={"translations" : 10},
+                               nastran_dof=0)  # 0-based
 
-    displacement1_y_dir = Float(1.25, iotype='out',
-                                units='inch',
-                                desc='Displacement in y-direction',
-                                nastran_table='displacement vector',
-                                nastran_subcase=1,
-                                nastran_id=10,
-                                nastran_column='T2'
-                                )
+    displacement1_y_dir = Float(0.20, iotype='out',
+                               units='inch',
+                               desc='Displacement in y-direction',
+                               nastran_header="displacements",
+                               nastran_subcase=1,
+                               nastran_time_step_freq_mode=None,
+                               nastran_constraints={"translations" : 10},
+                               nastran_dof=1)  # 0-based
 
-    displacement2_x_dir = Float(1.75, iotype='out',
-                                units='inch',
-                                desc='Displacement in x-direction',
-                                nastran_table='displacement vector',
-                                nastran_subcase=1,
-                                nastran_id=4,
-                                nastran_column='T1'
-                                )
+    displacement2_x_dir = Float(0.20, iotype='out',
+                               units='inch',
+                               desc='Displacement in x-direction',
+                               nastran_header="displacements",
+                               nastran_subcase=1,
+                               nastran_time_step_freq_mode=None,
+                               nastran_constraints={"translations" :4},
+                               nastran_dof=0)  # 0-based
 
-    displacement2_y_dir = Float(1.75, iotype='out',
-                                units='inch',
-                                desc='Displacement in y-direction',
-                                nastran_table='displacement vector',
-                                nastran_subcase=1,
-                                nastran_id=4,
-                                nastran_column='T2'
-                                )
+    displacement2_y_dir = Float(0.20, iotype='out',
+                               units='inch',
+                               desc='Displacement in y-direction',
+                               nastran_header="displacements",
+                               nastran_subcase=1,
+                               nastran_time_step_freq_mode=None,
+                               nastran_constraints={"translations" :4},
+                               nastran_dof=1)  # 0-based
 
-    displacement3_x_dir = Float(2.75, iotype='out',
-                                units='inch',
-                                desc='Displacement in x-direction',
-                                nastran_table='displacement vector',
-                                nastran_subcase=1,
-                                nastran_id=19,
-                                nastran_column='T1'
-                                )
+
+    displacement3_x_dir = Float(0.20, iotype='out',
+                               units='inch',
+                               desc='Displacement in x-direction',
+                               nastran_header="displacements",
+                               nastran_subcase=1,
+                               nastran_time_step_freq_mode=None,
+                               nastran_constraints={"translations" :19},
+                               nastran_dof=0)  # 0-based
 
     displacement3_y_dir = Float(2.75, iotype='out',
-                                units='inch',
-                                desc='Displacement in y-direction',
-                                nastran_table='displacement vector',
-                                nastran_subcase=1,
-                                nastran_id=19,
-                                nastran_column='T2'
-                                )
+                               units='inch',
+                               desc='Displacement in y-direction',
+                               nastran_header="displacements",
+                               nastran_subcase=1,
+                               nastran_time_step_freq_mode=None,
+                               nastran_constraints={"translations" :19},
+                               nastran_dof=1)  # 0-based
 
     displacement4_x_dir = Float(2.25, iotype='out',
-                                units='inch',
-                                desc='Displacement in x-direction',
-                                nastran_table='displacement vector',
-                                nastran_subcase=1,
-                                nastran_id=13,
-                                nastran_column='T1'
-                                )
+                               units='inch',
+                               desc='Displacement in x-direction',
+                               nastran_header="displacements",
+                               nastran_subcase=1,
+                               nastran_time_step_freq_mode=None,
+                               nastran_constraints={"translations" :13},
+                               nastran_dof=0)  # 0-based
 
     displacement4_y_dir = Float(2.25, iotype='out',
-                                units='inch',
-                                desc='Displacement in y-direction',
-                                nastran_table='displacement vector',
-                                nastran_subcase=1,
-                                nastran_id=13,
-                                nastran_column='T2'
-                                )
+                               units='inch',
+                               desc='Displacement in y-direction',
+                               nastran_header="displacements",
+                               nastran_subcase=1,
+                               nastran_time_step_freq_mode=None,
+                               nastran_constraints={"translations" :13},
+                               nastran_dof=1)  # 0-based
 
     def mass(op2):
         return op2.grid_point_weight.mass[0]

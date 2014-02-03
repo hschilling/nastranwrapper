@@ -40,28 +40,28 @@ class Bar3Static(NastranComponent):
                         units='lb/(inch*inch)',
                         desc='Stress in bar 3')
 
-    def disp(op2,**keywords):
-        d = op2.displacements[keywords['isubcase']].translations[keywords['id']][keywords['xyz']]
-        return d
+    # def disp(op2,**keywords):
+    #     d = op2.displacements[keywords['isubcase']].translations[keywords['id']][keywords['xyz']]
+    #     return d
 
     displacement_x_dir = Float(0.20, iotype='out',
                                units='inch',
-                               desc='Displacement in y-direction',
-                                nastran_table='displacement vector',
-                                nastran_subcase=1,
-                                nastran_id=1,
-                                nastran_column='T1'
-                               )
-
-    displacement_y_dir = Float(0.05, iotype='out',
+                               desc='Displacement in x-direction',
+                               nastran_header="displacements",
+                               nastran_subcase=1,
+                               nastran_time_step_freq_mode=None,
+                               nastran_constraints={"translations" : 1},
+                               nastran_dof=0)  # 0-based
+                                                                                                                            
+    displacement_y_dir = Float(0.20, iotype='out',
                                units='inch',
                                desc='Displacement in y-direction',
-                                nastran_table='displacement vector',
-                                nastran_subcase=1,
-                                nastran_id=1,
-                                nastran_column='T2'
-                               )
-
+                               nastran_header="displacements",
+                               nastran_subcase=1,
+                               nastran_time_step_freq_mode=None,
+                               nastran_constraints={"translations" : 1},
+                               nastran_dof=1)  # 0-based
+                                                                                                                            
     def mass(op2):
         return op2.grid_point_weight.mass[0]
 
@@ -74,6 +74,7 @@ class Bar3Static(NastranComponent):
             Force, Stress, Displacement,Frequency and Weight are returned at
             the Bar3Truss output.
         """
+
         super(Bar3Static, self).execute()
 
         stresses = []

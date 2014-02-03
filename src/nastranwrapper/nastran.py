@@ -134,12 +134,12 @@ class NastranComponent(ExternalCode):
                 # this is the grid method of accessing. We have to
                 # specify a header, id, and column and
                 # the output variable will be set to that value
-                elif trait.nastran_table and trait.nastran_id and trait.nastran_column:
+                elif trait.nastran_header and trait.nastran_constraints :
                     grid_outputs[name] = trait
-                elif trait.nastran_table or trait.nastran_id or trait.nastran_column:
+                elif trait.nastran_header or trait.nastran_constraints:
                     raise RuntimeError("You specified at least one of " + \
-                                    "nastran_table, nastran_id"+\
-                                    ", and nastran_columns, but you " + \
+                                    "nastran_header and nastran_constraints"+\
+                                    ", but you " + \
                                     "did not specify all them. You " + \
                                     "most probably mistyped")
 
@@ -231,15 +231,37 @@ class NastranComponent(ExternalCode):
 
         ########## get the outputs using pyNastran ##########
         self.timing_section( "Set outputs using data from OP2" )
-        displacement_columns = ['T1','T2','T3']
+
+        from pyNastran.utils import object_attributes
         for name, trait in grid_outputs.iteritems():
-            table = trait.nastran_table
-            subcase = trait.nastran_subcase
-            nastran_id = trait.nastran_id
-            column = trait.nastran_column
-            if table == "displacement vector" :
-                ixyz = displacement_columns.index( column )
-                setattr(self, name, self.op2.displacements[subcase].translations[nastran_id][ixyz])
+            if trait.nastran_header == 'displacements' :
+                var = getattr(self.op2, trait.nastran_header)
+                case = var[trait.nastran_subcase]
+                for key, eid in trait.nastran_constraints.iteritems():  # e.g., "translations", 18
+                    if not hasattr(case, key):
+                        #op2.displacements[isubcase=1] doesn't have an attribute "translation".
+                        #valid attributes are:  ["translations", "rotations"]
+                        msg = "op2.%s[isubcase=%i] does not have an attribute '%s'. " % (trait.nastran_header, trait.nastran_subcase, key )
+                        msg += "Valid attributes are: %s" % str(['%s' % att for att in object_attributes(case)])
+                        raise KeyError(msg)
+                    results_data = getattr(case, key)  # get the translations
+                    if trait.nastran_time_step_freq_mode:
+                        disp = results_data[trait.nastran_time_step_freq_mode][eid]
+                    else:  # "transient" result
+                        disp = results_data[eid] # get the specific ID
+                    setattr( self, name, disp[trait.nastran_dof] )
+            else:
+                raise RuntimeError("The Nastran header, %s, is not supported yet" % trait.nastran_header )
+
+        # displacement_columns = ['T1','T2','T3']
+        # for name, trait in grid_outputs.iteritems():
+        #     table = trait.nastran_table
+        #     subcase = trait.nastran_subcase
+        #     nastran_id = trait.nastran_id
+        #     column = trait.nastran_column
+        #     if table == "displacement vector" :
+        #         ixyz = displacement_columns.index( column )
+        #         setattr(self, name, self.op2.displacements[subcase].translations[nastran_id][ixyz])
         
         for output_name, output_trait in output_variables.iteritems():
             # We run trait.nastran_func on op2 to get output values

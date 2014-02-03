@@ -28,23 +28,24 @@ class Bar10Static(NastranComponent):
 
     # these are displacements that will be  constrained
 
+
     displacement1_y_dir = Float(2.0, iotype='out',
                                units='inch',
                                desc='Displacement in y-direction',
-                               nastran_table='displacement vector',
+                               nastran_header='displacements',
                                nastran_subcase=1,
-                               nastran_id=3,
-                               nastran_column='T2'
-                               )
+                               nastran_time_step_freq_mode=None,
+                               nastran_constraints={"translations" : 3},
+                               nastran_dof=1)  # 0-based
 
     displacement2_y_dir = Float(2.0, iotype='out',
                                units='inch',
                                desc='Displacement in y-direction',
-                               nastran_table='displacement vector',
+                               nastran_header='displacements',
                                nastran_subcase=1,
-                               nastran_id=4,
-                               nastran_column='T2'
-                               )
+                               nastran_time_step_freq_mode=None,
+                               nastran_constraints={"translations" : 4},
+                               nastran_dof=1)  # 0-based
 
     def mass(op2):
         return op2.grid_point_weight.mass[0]

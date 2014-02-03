@@ -28,40 +28,42 @@ class Bar25Static(NastranComponent):
         exec(cmd)
 
     # these are displacements that will be  constrained
-    displacement1_x_dir = Float(0.35, iotype='out',
+    displacement1_x_dir = Float(0.20, iotype='out',
                                units='inch',
                                desc='Displacement in x-direction',
-                               nastran_table='displacement vector',
+                               nastran_header="displacements",
                                nastran_subcase=1,
-                               nastran_id=1,
-                               nastran_column='T1'
-                               )
-    displacement1_y_dir = Float(0.35, iotype='out',
+                               nastran_time_step_freq_mode=None,
+                               nastran_constraints={"translations" : 1},
+                               nastran_dof=0)  # 0-based
+
+    displacement1_y_dir = Float(0.20, iotype='out',
                                units='inch',
                                desc='Displacement in y-direction',
-                               nastran_table='displacement vector',
+                               nastran_header="displacements",
                                nastran_subcase=1,
-                               nastran_id=1,
-                               nastran_column='T2'
-                               )
+                               nastran_time_step_freq_mode=None,
+                               nastran_constraints={"translations" : 1},
+                               nastran_dof=1)  # 0-based
 
-    displacement2_x_dir = Float(0.35, iotype='out',
+    displacement2_x_dir = Float(0.20, iotype='out',
                                units='inch',
                                desc='Displacement in x-direction',
-                               nastran_table='displacement vector',
+                               nastran_header="displacements",
                                nastran_subcase=1,
-                               nastran_id=2,
-                               nastran_column='T1'
-                               )
+                               nastran_time_step_freq_mode=None,
+                               nastran_constraints={"translations" : 2},
+                               nastran_dof=0)  # 0-based
 
-    displacement2_y_dir = Float(0.35, iotype='out',
+    displacement2_y_dir = Float(0.20, iotype='out',
                                units='inch',
                                desc='Displacement in y-direction',
-                               nastran_table='displacement vector',
+                               nastran_header="displacements",
                                nastran_subcase=1,
-                               nastran_id=2,
-                               nastran_column='T2'
-                               )
+                               nastran_time_step_freq_mode=None,
+                               nastran_constraints={"translations" : 2},
+                               nastran_dof=1)  # 0-based
+
 
     def mass(op2):
         return op2.grid_point_weight.mass[0]

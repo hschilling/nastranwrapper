@@ -33,13 +33,14 @@ class Comp_Plate(NastranComponent):
     property3_max_major_minor_strain = Float(0.0, iotype="out", desc="max major minor strain for pcomp 803")
 
     displacement_18_z_dir = Float(1.25, iotype='out',
-                                  units='inch',
-                                  desc='Displacement in z-direction',
-                                  nastran_table='displacement vector',
-                                  nastran_subcase=1,
-                                  nastran_id=18,
-                                  nastran_column='T3'
-                                )
+                               units='inch',
+                               desc='Displacement in z-direction',
+                               nastran_header="displacements",
+                               nastran_subcase=1,
+                               nastran_time_step_freq_mode=None,
+                               nastran_constraints={"translations" : 18},
+                               nastran_dof=2)  # 0-based
+
     def mass(op2):
         return op2.grid_point_weight.mass[0]
 

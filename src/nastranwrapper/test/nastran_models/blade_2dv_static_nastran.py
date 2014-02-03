@@ -41,11 +41,12 @@ class BladeStatic(NastranComponent):
     displacement_z_dir = Float(0.1632, iotype='out',
                                units='inch',
                                desc='Displacement in z-direction',
-                               nastran_table='displacement vector',
+                               nastran_header="displacements",
                                nastran_subcase=1,
-                               nastran_id=28,
-                               nastran_column='T3'
-                               )
+                               nastran_time_step_freq_mode=None,
+                               nastran_constraints={"translations" : 28},
+                               nastran_dof=2)  # 0-based
+
     def mass(op2):
         return op2.grid_point_weight.mass[0]
 
